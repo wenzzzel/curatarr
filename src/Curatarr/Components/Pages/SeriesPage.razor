@@ -1,0 +1,37 @@
+@page "/series"
+@using Curatarr.Data
+@using Curatarr.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<CuratarrDbContext> DbFactory
+
+<PageTitle>Series</PageTitle>
+
+<h1>Series</h1>
+
+@if (series is null)
+{
+    <p>Loading…</p>
+}
+else if (series.Count == 0)
+{
+    <p>No series tracked yet.</p>
+}
+else
+{
+    <ul>
+        @foreach (var s in series)
+        {
+            <li>@s.Title <small>(sonarr id @s.SonarrId)</small></li>
+        }
+    </ul>
+}
+
+@code {
+    private List<Series>? series;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        series = await db.Series.OrderBy(s => s.Title).ToListAsync();
+    }
+}
