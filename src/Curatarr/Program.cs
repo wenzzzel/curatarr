@@ -1,6 +1,9 @@
 using Curatarr.Components;
+using Curatarr.Configuration;
 using Curatarr.Data;
+using Curatarr.Services.Sonarr;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +12,18 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddDbContextFactory<CuratarrDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Curatarr")));
+
+builder.Services.Configure<SonarrOptions>(
+    builder.Configuration.GetSection(SonarrOptions.SectionName));
+
+builder.Services.AddHttpClient<SonarrClient>((sp, client) =>
+{
+    var sonarr = sp.GetRequiredService<IOptions<SonarrOptions>>().Value;
+    client.BaseAddress = new Uri(sonarr.Url);
+    client.DefaultRequestHeaders.Add("X-Api-Key", sonarr.ApiKey);
+});
+
+builder.Services.AddScoped<SonarrSyncService>();
 
 var app = builder.Build();
 
@@ -36,5 +51,17 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapGet("/ping", () => "pong");
+
+app.MapGet("/sonarr/ping", async (SonarrClient sonarr, CancellationToken ct) =>
+{
+    var status = await sonarr.GetSystemStatusAsync(ct);
+    return Results.Ok(status);
+});
+
+app.MapPost("/sonarr/sync/series", async (SonarrSyncService sync, CancellationToken ct) =>
+{
+    var count = await sync.SyncSeriesAsync(ct);
+    return Results.Ok(new { synced = count });
+});
 
 app.Run();
