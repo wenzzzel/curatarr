@@ -28,4 +28,6 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapGet("/ping", () => "pong");
+
 app.Run();
