@@ -31,7 +31,7 @@ using (var scope = app.Services.CreateScope())
 {
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<CuratarrDbContext>>();
     using var db = factory.CreateDbContext();
-    db.Database.Migrate();
+    await db.Database.MigrateAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -64,4 +64,4 @@ app.MapPost("/sonarr/sync/series", async (SonarrSyncService sync, CancellationTo
     return Results.Ok(new { synced = count });
 });
 
-app.Run();
+await app.RunAsync();
