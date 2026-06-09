@@ -34,7 +34,7 @@ docker build -t curatarr .
 
 docker run -d \
   --name curatarr \
-  -p 8080:8080 \
+  -p 9595:8080 \
   -v /path/to/curatarr/config:/config \
   -v /path/to/destination:/media/destination:ro \
   -e Sonarr__Url=http://sonarr:8989 \
@@ -57,7 +57,7 @@ services:
     image: wenzzzel/curatarr:latest
     container_name: curatarr
     ports:
-      - "8080:8080"
+      - "9595:8080"
     volumes:
       - /path/to/curatarr/config:/config
       - /path/to/destination:/media/destination:ro
