@@ -25,6 +25,28 @@ dotnet run --project src/Curatarr
 
 Configuration lives in `src/Curatarr/appsettings.json` and can be overridden with environment variables (standard ASP.NET conventions). The SQLite file is created on first run and is gitignored.
 
+## Running in Docker
+
+Build the image from the repo root, then run it with a persistent `/config` volume and (optionally) your destination tree mounted in read-only:
+
+```sh
+docker build -t curatarr .
+
+docker run -d \
+  --name curatarr \
+  -p 8080:8080 \
+  -v /path/to/curatarr/config:/config \
+  -v /path/to/destination:/media/destination:ro \
+  -e Sonarr__Url=http://sonarr:8989 \
+  -e Sonarr__ApiKey=your-api-key \
+  -e Destination__Root=/media/destination \
+  curatarr
+```
+
+All settings can be overridden with environment variables using `__` as the section separator (e.g. `Sonarr__ApiKey`, `ConnectionStrings__Curatarr`). The SQLite database lives at `/config/curatarr.db` by default, so anything mounted at `/config` will persist across container restarts.
+
+The mounted `/config` directory must be writable by UID `1654` (the `app` user in Microsoft's .NET runtime image).
+
 ## Status
 
 Early development. The schema and integrations are still taking shape — expect things to move around.
