@@ -1,37 +1,57 @@
 @page "/series"
-@using Curatarr.Data
-@using Curatarr.Models
-@using Microsoft.EntityFrameworkCore
-@inject IDbContextFactory<CuratarrDbContext> DbFactory
+@using Curatarr.Services.Diff
+@inject SeriesDiffService Diff
 
 <PageTitle>Series</PageTitle>
 
 <h1>Series</h1>
 
-@if (series is null)
+@if (rows is null)
 {
     <p>Loading…</p>
 }
-else if (series.Count == 0)
+else if (rows.Count == 0)
 {
-    <p>No series tracked yet.</p>
+    <p>Nothing in source or destination yet.</p>
 }
 else
 {
-    <ul>
-        @foreach (var s in series)
-        {
-            <li>@s.Title <small>(sonarr id @s.SonarrId)</small></li>
-        }
-    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td>@row.Title</td>
+                    <td>@(row.SourceFolder ?? "—")</td>
+                    <td>@(row.DestinationFolder ?? "—")</td>
+                    <td>@StatusFor(row)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
 @code {
-    private List<Series>? series;
+    private IReadOnlyList<SeriesDiffRow>? rows;
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        series = await db.Series.OrderBy(s => s.Title).ToListAsync();
+        rows = await Diff.GetSeriesDiffAsync();
     }
+
+    private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
+    {
+        (true, true) => "OK",
+        (true, false) => "Missing in destination",
+        (false, true) => "Orphaned in destination",
+        _ => "?",
+    };
 }

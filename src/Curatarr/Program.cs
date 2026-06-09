@@ -1,6 +1,8 @@
 using Curatarr.Components;
 using Curatarr.Configuration;
 using Curatarr.Data;
+using Curatarr.Services.Destination;
+using Curatarr.Services.Diff;
 using Curatarr.Services.Sonarr;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -24,6 +26,12 @@ builder.Services.AddHttpClient<SonarrClient>((sp, client) =>
 });
 
 builder.Services.AddScoped<SonarrSyncService>();
+
+builder.Services.Configure<DestinationOptions>(
+    builder.Configuration.GetSection(DestinationOptions.SectionName));
+
+builder.Services.AddSingleton<DestinationScanner>();
+builder.Services.AddScoped<SeriesDiffService>();
 
 var app = builder.Build();
 
