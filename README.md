@@ -47,6 +47,29 @@ All settings can be overridden with environment variables using `__` as the sect
 
 The mounted `/config` directory must be writable by UID `1654` (the `app` user in Microsoft's .NET runtime image).
 
+### Docker Compose
+
+Equivalent setup as a `docker-compose.yml`:
+
+```yaml
+services:
+  curatarr:
+    image: wenzzzel/curatarr:latest
+    container_name: curatarr
+    ports:
+      - "8080:8080"
+    volumes:
+      - /path/to/curatarr/config:/config
+      - /path/to/destination:/media/destination:ro
+    environment:
+      Sonarr__Url: http://sonarr:8989
+      Sonarr__ApiKey: your-api-key
+      Destination__Root: /media/destination
+    restart: unless-stopped
+```
+
+Start it with `docker compose up -d`. Swap `image:` for `build: .` if you want to build from a local checkout instead of pulling from Docker Hub.
+
 ## Status
 
 Early development. The schema and integrations are still taking shape — expect things to move around.
