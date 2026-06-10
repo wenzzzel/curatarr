@@ -18,7 +18,8 @@ public record SeriesDiffRow(
     int OrphanedFiles,
     int MissingSubtitles,
     int OriginalSubtitles,
-    int DownloadedSubtitles)
+    int DownloadedSubtitles,
+    int ExcessiveSubtitles)
 {
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
@@ -50,6 +51,24 @@ public record EpisodeDiffRow(
             ? [.. SourceSubtitles.Where(src => !DestinationSubtitles.Any(dst =>
                 dst.Suffix.Equals(src.Suffix, StringComparison.OrdinalIgnoreCase)))]
             : [];
+
+    public IReadOnlyList<SubtitleEntry> ExcessiveSubtitles
+    {
+        get
+        {
+            if (!HasDestination) return [];
+            var destSet = DestinationSubtitles
+                .Select(s => s.Suffix)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return [.. DestinationSubtitles
+                .Where(s => s.Origin == SubtitleOrigin.Downloaded)
+                .Where(s =>
+                {
+                    var original = SubtitleEquivalence.GetOriginalEquivalent(s.Suffix);
+                    return original is not null && destSet.Contains(original);
+                })];
+        }
+    }
 }
 
 public record OrphanedFileRow(string RelativePath, long SizeBytes);
@@ -77,6 +96,7 @@ public class SeriesDiffService(
             .OrderBy(s => s.Title)
             .Select(s => new
             {
+                s.Id,
                 s.Title,
                 s.SonarrId,
                 s.Path,
@@ -96,6 +116,8 @@ public class SeriesDiffService(
                     .Count(sub => sub.Side == FileSide.Destination && downloadedSuffixes.Contains(sub.Suffix)),
             })
             .ToListAsync(ct);
+
+        var excessiveBySeriesId = await ComputeExcessiveBySeriesAsync(db, ct);
 
         var destinationFolders = scanner.GetSeriesFolders()
             .ToDictionary(name => name, StringComparer.OrdinalIgnoreCase);
@@ -124,7 +146,8 @@ public class SeriesDiffService(
                 series.OrphanedFiles,
                 series.MissingSubtitles,
                 series.OriginalSubtitles,
-                series.DownloadedSubtitles));
+                series.DownloadedSubtitles,
+                excessiveBySeriesId.GetValueOrDefault(series.Id)));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -140,10 +163,36 @@ public class SeriesDiffService(
                 OrphanedFiles: 0,
                 MissingSubtitles: 0,
                 OriginalSubtitles: 0,
-                DownloadedSubtitles: 0));
+                DownloadedSubtitles: 0,
+                ExcessiveSubtitles: 0));
         }
 
         return [.. rows.OrderBy(r => r.Title)];
+    }
+
+    private static async Task<Dictionary<int, int>> ComputeExcessiveBySeriesAsync(
+        CuratarrDbContext db, CancellationToken ct)
+    {
+        var destSubs = await db.SubtitleFiles
+            .Where(sf => sf.Side == FileSide.Destination)
+            .Select(sf => new { SeriesId = sf.Episode.SeriesId, sf.EpisodeId, sf.Suffix })
+            .ToListAsync(ct);
+
+        return destSubs
+            .GroupBy(x => x.SeriesId)
+            .ToDictionary(
+                seriesGroup => seriesGroup.Key,
+                seriesGroup => seriesGroup
+                    .GroupBy(x => x.EpisodeId)
+                    .Sum(epGroup =>
+                    {
+                        var set = epGroup.Select(x => x.Suffix).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        return epGroup.Count(x =>
+                        {
+                            var original = SubtitleEquivalence.GetOriginalEquivalent(x.Suffix);
+                            return original is not null && set.Contains(original);
+                        });
+                    }));
     }
 
     public async Task<SeriesDetail?> GetSeriesDetailAsync(int sonarrId, CancellationToken ct = default)

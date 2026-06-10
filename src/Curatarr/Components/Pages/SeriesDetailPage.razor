@@ -79,6 +79,23 @@ else
                     }
                 </CellTemplate>
             </TemplateColumn>
+            <TemplateColumn Title="Excessive subtitles" Sortable="true" SortBy="@(e => e.ExcessiveSubtitles.Count)">
+                <CellTemplate>
+                    @if (context.Item.ExcessiveSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.ExcessiveSubtitles)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Status" Sortable="true" SortBy="@(e => StatusBadgeFor(e).Severity)">
                 <CellTemplate>
                     @{
@@ -149,14 +166,20 @@ else
 
     private static StatusBadge StatusBadgeFor(EpisodeDiffRow ep) => (ep.HasSource, ep.HasDestination) switch
     {
-        (true, true) when ep.MissingSubtitles.Count == 0
+        (true, true) when ep.MissingSubtitles.Count == 0 && ep.ExcessiveSubtitles.Count == 0
             => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
         (true, true)
-            => new($"{ep.MissingSubtitles.Count} missing subs", Color.Warning, Icons.Material.Filled.Subtitles, 1),
+            => new(string.Join(", ", BuildEpisodeIssues(ep)), Color.Warning, Icons.Material.Filled.Subtitles, 1),
         (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 3),
         (false, true) => new("Orphaned in destination", Color.Info, Icons.Material.Filled.FileCopy, 2),
         _ => new("No file", Color.Default, Icons.Material.Filled.HelpOutline, 4),
     };
+
+    private static IEnumerable<string> BuildEpisodeIssues(EpisodeDiffRow ep)
+    {
+        if (ep.MissingSubtitles.Count > 0) yield return $"{ep.MissingSubtitles.Count} missing subs";
+        if (ep.ExcessiveSubtitles.Count > 0) yield return $"{ep.ExcessiveSubtitles.Count} excessive subs";
+    }
 
     private static Color SubtitleColor(SubtitleOrigin origin) => origin switch
     {

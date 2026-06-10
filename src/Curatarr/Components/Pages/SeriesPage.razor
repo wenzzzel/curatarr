@@ -78,6 +78,18 @@ else
                     }
                 </CellTemplate>
             </PropertyColumn>
+            <PropertyColumn Property="x => x.ExcessiveSubtitles" Title="Excessive subs">
+                <CellTemplate>
+                    @if (context.Item.ExcessiveSubtitles == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@context.Item.ExcessiveSubtitles</MudChip>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
             <TemplateColumn Title="Status" Sortable="true" SortBy="@(r => StatusBadgeFor(r).Severity)">
                 <CellTemplate>
                     @{
@@ -121,7 +133,7 @@ else
     {
         (false, true) => new("Orphaned folder", Color.Info, Icons.Material.Filled.FolderOff, 2),
         (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 4),
-        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0
             => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
         (true, true) when row.MissingEpisodes > 0
             => new(string.Join(", ", BuildIssues(row)), Color.Error, Icons.Material.Filled.Error, 3),
@@ -134,5 +146,6 @@ else
         if (row.MissingEpisodes > 0) yield return $"{row.MissingEpisodes} missing";
         if (row.OrphanedFiles > 0) yield return $"{row.OrphanedFiles} orphaned";
         if (row.MissingSubtitles > 0) yield return $"{row.MissingSubtitles} missing subs";
+        if (row.ExcessiveSubtitles > 0) yield return $"{row.ExcessiveSubtitles} excessive subs";
     }
 }
