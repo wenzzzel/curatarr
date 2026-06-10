@@ -34,7 +34,7 @@ public class DestinationSyncService(
         var destinationFolders = Directory.EnumerateDirectories(_options.Root)
             .Select(p => (Full: p, Leaf: Path.GetFileName(p)))
             .Where(x => !string.IsNullOrEmpty(x.Leaf))
-            .ToDictionary(x => x.Leaf!, x => x.Full, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Leaf, x => x.Full, StringComparer.OrdinalIgnoreCase);
 
         var seriesScanned = 0;
         var filesMatched = 0;
@@ -58,10 +58,10 @@ public class DestinationSyncService(
 
     private static int SyncSeriesDestinationFiles(Series series, string destFolder, DateTimeOffset now)
     {
-        var sourceByStem = series.Episodes
+        var episodesBySourceStem = series.Episodes
             .Select(e => new { Episode = e, Source = e.Files.FirstOrDefault(f => f.Side == FileSide.Source) })
             .Where(x => x.Source is not null)
-            .ToDictionary(
+            .ToLookup(
                 x => Path.GetFileNameWithoutExtension(x.Source!.RelativePath),
                 x => x.Episode,
                 StringComparer.OrdinalIgnoreCase);
@@ -72,12 +72,17 @@ public class DestinationSyncService(
         foreach (var path in Directory.EnumerateFiles(destFolder, $"*{DestinationExtension}", SearchOption.AllDirectories))
         {
             var stem = Path.GetFileNameWithoutExtension(path);
-            if (!sourceByStem.TryGetValue(stem, out var episode)) continue;
+            var episodes = episodesBySourceStem[stem].ToList();
+            if (episodes.Count == 0) continue;
 
             var relativePath = Path.GetRelativePath(destFolder, path);
             var size = new FileInfo(path).Length;
-            UpsertFile(episode, FileSide.Destination, relativePath, size, now);
-            matchedEpisodeIds.Add(episode.SonarrId);
+
+            foreach (var episode in episodes)
+            {
+                UpsertFile(episode, FileSide.Destination, relativePath, size, now);
+                matchedEpisodeIds.Add(episode.SonarrId);
+            }
             matchCount++;
         }
 
