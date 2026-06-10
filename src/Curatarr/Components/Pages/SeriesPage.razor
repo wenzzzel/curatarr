@@ -78,7 +78,7 @@ else
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <TemplateColumn Title="Status" SortBy="@(r => StatusBadgeFor(r).Severity)">
+            <TemplateColumn Title="Status" Sortable="true" SortBy="@(r => StatusBadgeFor(r).Severity)">
                 <CellTemplate>
                     @{
                         var badge = StatusBadgeFor(context.Item);
