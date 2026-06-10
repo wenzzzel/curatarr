@@ -50,8 +50,17 @@ else
             <PropertyColumn Property="x => x.OriginalSubtitles" Title="Original subs" />
             <PropertyColumn Property="x => x.DownloadedSubtitles" Title="Downloaded subs" />
             <PropertyColumn Property="x => x.MissingSubtitles" Title="Missing subs" />
-            <TemplateColumn Title="Status" SortBy="@(r => StatusFor(r))">
-                <CellTemplate>@StatusFor(context.Item)</CellTemplate>
+            <TemplateColumn Title="Status" SortBy="@(r => StatusBadgeFor(r).Severity)">
+                <CellTemplate>
+                    @{
+                        var badge = StatusBadgeFor(context.Item);
+                    }
+                    <MudChip T="string"
+                             Color="@badge.Color"
+                             Icon="@badge.Icon"
+                             Size="Size.Small"
+                             Variant="Variant.Filled">@badge.Label</MudChip>
+                </CellTemplate>
             </TemplateColumn>
         </Columns>
         <PagerContent>
@@ -78,13 +87,16 @@ else
         return row.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
+    private record StatusBadge(string Label, Color Color, string Icon, int Severity);
+
+    private static StatusBadge StatusBadgeFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
     {
-        (false, true) => "Orphaned folder",
-        (true, false) => "Missing in destination",
-        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 => "OK",
-        (true, true) => string.Join(", ", BuildIssues(row)),
-        _ => "?",
+        (false, true) => new("Orphaned folder", Color.Info, Icons.Material.Filled.FolderOff, 2),
+        (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 3),
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0
+            => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
+        (true, true) => new(string.Join(", ", BuildIssues(row)), Color.Warning, Icons.Material.Filled.Warning, 1),
+        _ => new("?", Color.Default, Icons.Material.Filled.HelpOutline, 4),
     };
 
     private static IEnumerable<string> BuildIssues(SeriesDiffRow row)
