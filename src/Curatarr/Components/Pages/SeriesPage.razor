@@ -30,7 +30,7 @@ else
                           Clearable="true" />
         </ToolBarContent>
         <Columns>
-            <TemplateColumn Title="Title" SortBy="@(r => r.Title)">
+            <TemplateColumn Title="Title" Sortable="true" SortBy="@(r => r.Title)">
                 <CellTemplate>
                     @if (context.Item.SonarrId is { } id)
                     {
@@ -44,7 +44,7 @@ else
             </TemplateColumn>
             <PropertyColumn Property="x => x.SourceFolder" Title="Source folder" />
             <PropertyColumn Property="x => x.DestinationFolder" Title="Destination folder" />
-            <TemplateColumn Title="Episodes" SortBy="@(r => r.SourceEpisodes)">
+            <TemplateColumn Title="Episodes" Sortable="true" SortBy="@(r => r.SourceEpisodes)">
                 <CellTemplate>
                     <MudText Inline="true"
                              Color="@(context.Item.MissingEpisodes > 0 ? Color.Error : Color.Default)">

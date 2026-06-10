@@ -38,11 +38,11 @@ else
                           Clearable="true" />
         </ToolBarContent>
         <Columns>
-            <TemplateColumn Title="Episode" SortBy="@(e => e.SeasonNumber * 1000 + e.EpisodeNumber)">
+            <TemplateColumn Title="Episode" Sortable="true" SortBy="@(e => e.SeasonNumber * 1000 + e.EpisodeNumber)">
                 <CellTemplate>S@(context.Item.SeasonNumber.ToString("00"))E@(context.Item.EpisodeNumber.ToString("00"))</CellTemplate>
             </TemplateColumn>
             <PropertyColumn Property="x => x.Title" Title="Title" />
-            <TemplateColumn Title="File path" SortBy="@(e => e.DestinationFile ?? string.Empty)">
+            <TemplateColumn Title="File path" Sortable="true" SortBy="@(e => e.DestinationFile ?? string.Empty)">
                 <CellTemplate>@(context.Item.DestinationFile ?? "—")</CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Subtitles" Sortable="false" Filterable="false">
@@ -62,7 +62,7 @@ else
                     }
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn Title="Missing subtitles" SortBy="@(e => e.MissingSubtitles.Count)">
+            <TemplateColumn Title="Missing subtitles" Sortable="true" SortBy="@(e => e.MissingSubtitles.Count)">
                 <CellTemplate>
                     @if (context.Item.MissingSubtitles.Count == 0)
                     {
@@ -113,7 +113,7 @@ else
                      RowsPerPage="25">
             <Columns>
                 <PropertyColumn Property="x => x.RelativePath" Title="Path" />
-                <TemplateColumn Title="Size" SortBy="@(o => o.SizeBytes)">
+                <TemplateColumn Title="Size" Sortable="true" SortBy="@(o => o.SizeBytes)">
                     <CellTemplate>@FormatSize(context.Item.SizeBytes)</CellTemplate>
                 </TemplateColumn>
             </Columns>
