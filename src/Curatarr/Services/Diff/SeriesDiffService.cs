@@ -1,7 +1,10 @@
+using Curatarr.Configuration;
 using Curatarr.Data;
 using Curatarr.Models;
 using Curatarr.Services.Destination;
+using Curatarr.Services.Subtitle;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Curatarr.Services.Diff;
 
@@ -13,7 +16,9 @@ public record SeriesDiffRow(
     int SourceEpisodes,
     int DestinationEpisodes,
     int OrphanedFiles,
-    int MissingSubtitles)
+    int MissingSubtitles,
+    int OriginalSubtitles,
+    int DownloadedSubtitles)
 {
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
@@ -26,6 +31,8 @@ public record SeriesDetail(
     IReadOnlyList<EpisodeDiffRow> Episodes,
     IReadOnlyList<OrphanedFileRow> OrphanedFiles);
 
+public record SubtitleEntry(string Suffix, SubtitleOrigin Origin);
+
 public record EpisodeDiffRow(
     int SonarrId,
     int SeasonNumber,
@@ -33,14 +40,15 @@ public record EpisodeDiffRow(
     string Title,
     string? SourceFile,
     string? DestinationFile,
-    IReadOnlyList<string> SourceSubtitles,
-    IReadOnlyList<string> DestinationSubtitles)
+    IReadOnlyList<SubtitleEntry> SourceSubtitles,
+    IReadOnlyList<SubtitleEntry> DestinationSubtitles)
 {
     public bool HasSource => SourceFile is not null;
     public bool HasDestination => DestinationFile is not null;
-    public IReadOnlyList<string> MissingSubtitles =>
+    public IReadOnlyList<SubtitleEntry> MissingSubtitles =>
         HasSource && HasDestination
-            ? [.. SourceSubtitles.Except(DestinationSubtitles, StringComparer.OrdinalIgnoreCase)]
+            ? [.. SourceSubtitles.Where(src => !DestinationSubtitles.Any(dst =>
+                dst.Suffix.Equals(src.Suffix, StringComparison.OrdinalIgnoreCase)))]
             : [];
 }
 
@@ -48,11 +56,21 @@ public record OrphanedFileRow(string RelativePath, long SizeBytes);
 
 public class SeriesDiffService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
-    DestinationScanner scanner)
+    DestinationScanner scanner,
+    IOptions<SubtitleOptions> subtitleOptions)
 {
+    private readonly SubtitleOptions _subtitleOptions = subtitleOptions.Value;
+
     public async Task<IReadOnlyList<SeriesDiffRow>> GetSeriesDiffAsync(CancellationToken ct = default)
     {
         await using var db = await dbFactory.CreateDbContextAsync(ct);
+
+        var originalSuffixes = _subtitleOptions.Suffixes
+            .Where(s => SubtitleOriginClassifier.Classify(s) == SubtitleOrigin.Original)
+            .ToArray();
+        var downloadedSuffixes = _subtitleOptions.Suffixes
+            .Where(s => SubtitleOriginClassifier.Classify(s) == SubtitleOrigin.Downloaded)
+            .ToArray();
 
         var seriesWithCounts = await db.Series
             .Where(s => s.Episodes.Any(e => e.Files.Any(f => f.Side == FileSide.Source)))
@@ -70,6 +88,12 @@ public class SeriesDiffService(
                     .SelectMany(e => e.Subtitles.Where(srcSub => srcSub.Side == FileSide.Source))
                     .Count(srcSub => !srcSub.Episode.Subtitles.Any(destSub =>
                         destSub.Side == FileSide.Destination && destSub.Suffix == srcSub.Suffix)),
+                OriginalSubtitles = s.Episodes
+                    .SelectMany(e => e.Subtitles)
+                    .Count(sub => sub.Side == FileSide.Destination && originalSuffixes.Contains(sub.Suffix)),
+                DownloadedSubtitles = s.Episodes
+                    .SelectMany(e => e.Subtitles)
+                    .Count(sub => sub.Side == FileSide.Destination && downloadedSuffixes.Contains(sub.Suffix)),
             })
             .ToListAsync(ct);
 
@@ -98,7 +122,9 @@ public class SeriesDiffService(
                 series.SourceEpisodes,
                 series.DestinationEpisodes,
                 series.OrphanedFiles,
-                series.MissingSubtitles));
+                series.MissingSubtitles,
+                series.OriginalSubtitles,
+                series.DownloadedSubtitles));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -112,7 +138,9 @@ public class SeriesDiffService(
                 SourceEpisodes: 0,
                 DestinationEpisodes: 0,
                 OrphanedFiles: 0,
-                MissingSubtitles: 0));
+                MissingSubtitles: 0,
+                OriginalSubtitles: 0,
+                DownloadedSubtitles: 0));
         }
 
         return [.. rows.OrderBy(r => r.Title)];
@@ -140,8 +168,14 @@ public class SeriesDiffService(
                 e.Title,
                 e.SourceFile is { } sf ? Path.GetFileName(sf.RelativePath) : null,
                 e.DestinationFile is { } df ? Path.GetFileName(df.RelativePath) : null,
-                [.. e.Subtitles.Where(s => s.Side == FileSide.Source).Select(s => s.Suffix).OrderBy(x => x)],
-                [.. e.Subtitles.Where(s => s.Side == FileSide.Destination).Select(s => s.Suffix).OrderBy(x => x)]))
+                [.. e.Subtitles
+                    .Where(s => s.Side == FileSide.Source)
+                    .Select(s => new SubtitleEntry(s.Suffix, SubtitleOriginClassifier.Classify(s.Suffix)))
+                    .OrderBy(x => x.Suffix)],
+                [.. e.Subtitles
+                    .Where(s => s.Side == FileSide.Destination)
+                    .Select(s => new SubtitleEntry(s.Suffix, SubtitleOriginClassifier.Classify(s.Suffix)))
+                    .OrderBy(x => x.Suffix)]))
             .ToList();
 
         var orphans = series.OrphanedDestinationFiles

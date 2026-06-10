@@ -25,6 +25,8 @@ else
                 <th>Source episodes</th>
                 <th>Destination episodes</th>
                 <th>Orphaned</th>
+                <th>Original subs</th>
+                <th>Downloaded subs</th>
                 <th>Missing subtitles</th>
                 <th>Status</th>
             </tr>
@@ -48,6 +50,8 @@ else
                     <td>@row.SourceEpisodes</td>
                     <td>@row.DestinationEpisodes</td>
                     <td>@row.OrphanedFiles</td>
+                    <td>@row.OriginalSubtitles</td>
+                    <td>@row.DownloadedSubtitles</td>
                     <td>@row.MissingSubtitles</td>
                     <td>@StatusFor(row)</td>
                 </tr>

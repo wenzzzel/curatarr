@@ -40,9 +40,9 @@ else
                     <td>@ep.Title</td>
                     <td>@(ep.SourceFile ?? "—")</td>
                     <td>@(ep.DestinationFile ?? "—")</td>
-                    <td>@(ep.SourceSubtitles.Count == 0 ? "—" : string.Join(", ", ep.SourceSubtitles))</td>
-                    <td>@(ep.DestinationSubtitles.Count == 0 ? "—" : string.Join(", ", ep.DestinationSubtitles))</td>
-                    <td>@(ep.MissingSubtitles.Count == 0 ? "—" : string.Join(", ", ep.MissingSubtitles))</td>
+                    <td>@FormatSubtitles(ep.SourceSubtitles)</td>
+                    <td>@FormatSubtitles(ep.DestinationSubtitles)</td>
+                    <td>@FormatSubtitles(ep.MissingSubtitles)</td>
                     <td>@StatusFor(ep)</td>
                 </tr>
             }
@@ -92,6 +92,18 @@ else
         (true, false) => "Missing in destination",
         (false, true) => "Orphaned in destination",
         _ => "No file",
+    };
+
+    private static string FormatSubtitles(IReadOnlyList<SubtitleEntry> subs) =>
+        subs.Count == 0
+            ? "—"
+            : string.Join(", ", subs.Select(s => $"{s.Suffix} ({OriginLabel(s.Origin)})"));
+
+    private static string OriginLabel(Curatarr.Services.Subtitle.SubtitleOrigin origin) => origin switch
+    {
+        Curatarr.Services.Subtitle.SubtitleOrigin.Original => "orig",
+        Curatarr.Services.Subtitle.SubtitleOrigin.Downloaded => "dl",
+        _ => "?",
     };
 
     private static string FormatSize(long bytes) => bytes switch
