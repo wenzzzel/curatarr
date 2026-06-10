@@ -7,7 +7,7 @@
 @inject SubtitleSyncService SubtitleSync
 @inject ISnackbar Snackbar
 
-<MudThemeProvider />
+<MudThemeProvider @ref="themeProvider" @bind-IsDarkMode="isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -48,6 +48,25 @@
 @code {
     private bool drawerOpen = true;
     private bool isSyncing;
+    private bool isDarkMode;
+    private MudThemeProvider themeProvider = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isDarkMode = await themeProvider.GetSystemDarkModeAsync();
+            await themeProvider.WatchSystemDarkModeAsync(OnSystemPreferenceChanged);
+            StateHasChanged();
+        }
+    }
+
+    private Task OnSystemPreferenceChanged(bool newValue)
+    {
+        isDarkMode = newValue;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     private void ToggleDrawer() => drawerOpen = !drawerOpen;
 
