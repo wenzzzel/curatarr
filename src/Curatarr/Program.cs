@@ -5,6 +5,7 @@ using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.Sonarr;
+using Curatarr.Services.Subtitle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -33,6 +34,13 @@ builder.Services.Configure<DestinationOptions>(
 
 builder.Services.AddSingleton<DestinationScanner>();
 builder.Services.AddScoped<DestinationSyncService>();
+
+builder.Services.Configure<SourceOptions>(
+    builder.Configuration.GetSection(SourceOptions.SectionName));
+builder.Services.Configure<SubtitleOptions>(
+    builder.Configuration.GetSection(SubtitleOptions.SectionName));
+builder.Services.AddScoped<SubtitleSyncService>();
+
 builder.Services.AddScoped<SeriesDiffService>();
 
 var app = builder.Build();

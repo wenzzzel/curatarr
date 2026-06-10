@@ -13,6 +13,8 @@ public class CuratarrDbContext(DbContextOptions<CuratarrDbContext> options) : Db
 
     public DbSet<OrphanedDestinationFile> OrphanedDestinationFiles => Set<OrphanedDestinationFile>();
 
+    public DbSet<SubtitleFile> SubtitleFiles => Set<SubtitleFile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Series>(b =>
@@ -56,6 +58,18 @@ public class CuratarrDbContext(DbContextOptions<CuratarrDbContext> options) : Db
             b.HasOne(x => x.Series)
                 .WithMany(s => s.OrphanedDestinationFiles)
                 .HasForeignKey(x => x.SeriesId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SubtitleFile>(b =>
+        {
+            b.HasIndex(x => new { x.EpisodeId, x.Side, x.Suffix }).IsUnique();
+            b.Property(x => x.Suffix).HasMaxLength(50);
+            b.Property(x => x.RelativePath).HasMaxLength(1000);
+
+            b.HasOne(x => x.Episode)
+                .WithMany(e => e.Subtitles)
+                .HasForeignKey(x => x.EpisodeId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

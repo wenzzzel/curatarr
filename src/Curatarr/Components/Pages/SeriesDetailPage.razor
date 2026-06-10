@@ -26,6 +26,9 @@ else
                 <th>Title</th>
                 <th>Source file</th>
                 <th>Destination file</th>
+                <th>Subtitles (source)</th>
+                <th>Subtitles (destination)</th>
+                <th>Missing subtitles</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -37,6 +40,9 @@ else
                     <td>@ep.Title</td>
                     <td>@(ep.SourceFile ?? "—")</td>
                     <td>@(ep.DestinationFile ?? "—")</td>
+                    <td>@(ep.SourceSubtitles.Count == 0 ? "—" : string.Join(", ", ep.SourceSubtitles))</td>
+                    <td>@(ep.DestinationSubtitles.Count == 0 ? "—" : string.Join(", ", ep.DestinationSubtitles))</td>
+                    <td>@(ep.MissingSubtitles.Count == 0 ? "—" : string.Join(", ", ep.MissingSubtitles))</td>
                     <td>@StatusFor(ep)</td>
                 </tr>
             }

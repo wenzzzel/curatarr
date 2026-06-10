@@ -12,7 +12,8 @@ public record SeriesDiffRow(
     string? DestinationFolder,
     int SourceEpisodes,
     int DestinationEpisodes,
-    int OrphanedFiles)
+    int OrphanedFiles,
+    int MissingSubtitles)
 {
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
@@ -31,10 +32,16 @@ public record EpisodeDiffRow(
     int EpisodeNumber,
     string Title,
     string? SourceFile,
-    string? DestinationFile)
+    string? DestinationFile,
+    IReadOnlyList<string> SourceSubtitles,
+    IReadOnlyList<string> DestinationSubtitles)
 {
     public bool HasSource => SourceFile is not null;
     public bool HasDestination => DestinationFile is not null;
+    public IReadOnlyList<string> MissingSubtitles =>
+        HasSource && HasDestination
+            ? [.. SourceSubtitles.Except(DestinationSubtitles, StringComparer.OrdinalIgnoreCase)]
+            : [];
 }
 
 public record OrphanedFileRow(string RelativePath, long SizeBytes);
@@ -58,6 +65,11 @@ public class SeriesDiffService(
                 SourceEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Source)),
                 DestinationEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Destination)),
                 OrphanedFiles = s.OrphanedDestinationFiles.Count(),
+                MissingSubtitles = s.Episodes
+                    .Where(e => e.Files.Any(f => f.Side == FileSide.Source) && e.Files.Any(f => f.Side == FileSide.Destination))
+                    .SelectMany(e => e.Subtitles.Where(srcSub => srcSub.Side == FileSide.Source))
+                    .Count(srcSub => !srcSub.Episode.Subtitles.Any(destSub =>
+                        destSub.Side == FileSide.Destination && destSub.Suffix == srcSub.Suffix)),
             })
             .ToListAsync(ct);
 
@@ -85,7 +97,8 @@ public class SeriesDiffService(
                 destinationMatch,
                 series.SourceEpisodes,
                 series.DestinationEpisodes,
-                series.OrphanedFiles));
+                series.OrphanedFiles,
+                series.MissingSubtitles));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -98,7 +111,8 @@ public class SeriesDiffService(
                 DestinationFolder: folder,
                 SourceEpisodes: 0,
                 DestinationEpisodes: 0,
-                OrphanedFiles: 0));
+                OrphanedFiles: 0,
+                MissingSubtitles: 0));
         }
 
         return [.. rows.OrderBy(r => r.Title)];
@@ -109,8 +123,8 @@ public class SeriesDiffService(
         await using var db = await dbFactory.CreateDbContextAsync(ct);
 
         var series = await db.Series
-            .Include(s => s.Episodes)
-            .ThenInclude(e => e.Files)
+            .Include(s => s.Episodes).ThenInclude(e => e.Files)
+            .Include(s => s.Episodes).ThenInclude(e => e.Subtitles)
             .Include(s => s.OrphanedDestinationFiles)
             .FirstOrDefaultAsync(s => s.SonarrId == sonarrId, ct);
 
@@ -125,7 +139,9 @@ public class SeriesDiffService(
                 e.EpisodeNumber,
                 e.Title,
                 e.SourceFile is { } sf ? Path.GetFileName(sf.RelativePath) : null,
-                e.DestinationFile is { } df ? Path.GetFileName(df.RelativePath) : null))
+                e.DestinationFile is { } df ? Path.GetFileName(df.RelativePath) : null,
+                [.. e.Subtitles.Where(s => s.Side == FileSide.Source).Select(s => s.Suffix).OrderBy(x => x)],
+                [.. e.Subtitles.Where(s => s.Side == FileSide.Destination).Select(s => s.Suffix).OrderBy(x => x)]))
             .ToList();
 
         var orphans = series.OrphanedDestinationFiles

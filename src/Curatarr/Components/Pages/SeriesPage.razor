@@ -25,6 +25,7 @@ else
                 <th>Source episodes</th>
                 <th>Destination episodes</th>
                 <th>Orphaned</th>
+                <th>Missing subtitles</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -47,6 +48,7 @@ else
                     <td>@row.SourceEpisodes</td>
                     <td>@row.DestinationEpisodes</td>
                     <td>@row.OrphanedFiles</td>
+                    <td>@row.MissingSubtitles</td>
                     <td>@StatusFor(row)</td>
                 </tr>
             }
@@ -66,7 +68,7 @@ else
     {
         (false, true) => "Orphaned folder",
         (true, false) => "Missing in destination",
-        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 => "OK",
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 => "OK",
         (true, true) => string.Join(", ", BuildIssues(row)),
         _ => "?",
     };
@@ -75,5 +77,6 @@ else
     {
         if (row.MissingEpisodes > 0) yield return $"{row.MissingEpisodes} missing";
         if (row.OrphanedFiles > 0) yield return $"{row.OrphanedFiles} orphaned";
+        if (row.MissingSubtitles > 0) yield return $"{row.MissingSubtitles} missing subs";
     }
 }
