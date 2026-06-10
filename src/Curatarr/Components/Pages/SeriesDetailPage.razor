@@ -24,10 +24,8 @@ else
             <tr>
                 <th>Episode</th>
                 <th>Title</th>
-                <th>Source file</th>
-                <th>Destination file</th>
-                <th>Subtitles (source)</th>
-                <th>Subtitles (destination)</th>
+                <th>File path</th>
+                <th>Subtitles</th>
                 <th>Missing subtitles</th>
                 <th>Status</th>
             </tr>
@@ -38,9 +36,7 @@ else
                 <tr>
                     <td>S@(ep.SeasonNumber.ToString("00"))E@(ep.EpisodeNumber.ToString("00"))</td>
                     <td>@ep.Title</td>
-                    <td>@(ep.SourceFile ?? "—")</td>
                     <td>@(ep.DestinationFile ?? "—")</td>
-                    <td>@FormatSubtitles(ep.SourceSubtitles)</td>
                     <td>@FormatSubtitles(ep.DestinationSubtitles)</td>
                     <td>@FormatSubtitles(ep.MissingSubtitles)</td>
                     <td>@StatusFor(ep)</td>
