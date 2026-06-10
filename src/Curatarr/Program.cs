@@ -1,6 +1,7 @@
 using Curatarr.Components;
 using Curatarr.Configuration;
 using Curatarr.Data;
+using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.Sonarr;
@@ -54,18 +55,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapGet("/ping", () => "pong");
-
-app.MapGet("/sonarr/ping", async (SonarrClient sonarr, CancellationToken ct) =>
-{
-    var status = await sonarr.GetSystemStatusAsync(ct);
-    return Results.Ok(status);
-});
-
-app.MapPost("/sonarr/sync/series", async (SonarrSyncService sync, CancellationToken ct) =>
-{
-    var count = await sync.SyncSeriesAsync(ct);
-    return Results.Ok(new { synced = count });
-});
+app.MapHealthEndpoints();
+app.MapSonarrEndpoints();
 
 await app.RunAsync();
