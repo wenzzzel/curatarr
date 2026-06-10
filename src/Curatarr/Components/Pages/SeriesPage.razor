@@ -24,6 +24,7 @@ else
                 <th>Destination folder</th>
                 <th>Source episodes</th>
                 <th>Destination episodes</th>
+                <th>Orphaned</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -45,6 +46,7 @@ else
                     <td>@(row.DestinationFolder ?? "—")</td>
                     <td>@row.SourceEpisodes</td>
                     <td>@row.DestinationEpisodes</td>
+                    <td>@row.OrphanedFiles</td>
                     <td>@StatusFor(row)</td>
                 </tr>
             }
@@ -62,11 +64,16 @@ else
 
     private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
     {
-        (false, true) => "Orphaned in destination",
+        (false, true) => "Orphaned folder",
         (true, false) => "Missing in destination",
-        (true, true) when row.MissingEpisodes == 0 && row.SourceEpisodes > 0 => "OK",
-        (true, true) when row.MissingEpisodes > 0 => $"{row.MissingEpisodes} missing",
-        (true, true) => "No episodes synced yet",
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 => "OK",
+        (true, true) => string.Join(", ", BuildIssues(row)),
         _ => "?",
     };
+
+    private static IEnumerable<string> BuildIssues(SeriesDiffRow row)
+    {
+        if (row.MissingEpisodes > 0) yield return $"{row.MissingEpisodes} missing";
+        if (row.OrphanedFiles > 0) yield return $"{row.OrphanedFiles} orphaned";
+    }
 }

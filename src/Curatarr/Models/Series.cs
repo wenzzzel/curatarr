@@ -13,4 +13,6 @@ public class Series
     public DateTimeOffset LastSyncedAt { get; set; }
 
     public List<Episode> Episodes { get; set; } = [];
+
+    public List<OrphanedDestinationFile> OrphanedDestinationFiles { get; set; } = [];
 }

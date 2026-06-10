@@ -21,6 +21,7 @@ public static class SyncEndpoints
                 episodes = sonarrResult.EpisodeCount,
                 destinationSeriesScanned = destinationResult.SeriesScanned,
                 destinationFilesMatched = destinationResult.FilesMatched,
+                destinationOrphanedFiles = destinationResult.OrphanedFiles,
             });
         });
     }

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Curatarr.Services.Destination;
 
-public record DestinationSyncResult(int SeriesScanned, int FilesMatched);
+public record DestinationSyncResult(int SeriesScanned, int FilesMatched, int OrphanedFiles);
 
 public class DestinationSyncService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
@@ -20,7 +20,7 @@ public class DestinationSyncService(
     {
         if (string.IsNullOrWhiteSpace(_options.Root) || !Directory.Exists(_options.Root))
         {
-            return new DestinationSyncResult(0, 0);
+            return new DestinationSyncResult(0, 0, 0);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -29,6 +29,7 @@ public class DestinationSyncService(
         var allSeries = await db.Series
             .Include(s => s.Episodes)
             .ThenInclude(e => e.Files)
+            .Include(s => s.OrphanedDestinationFiles)
             .ToListAsync(ct);
 
         var destinationFolders = Directory.EnumerateDirectories(_options.Root)
@@ -38,12 +39,14 @@ public class DestinationSyncService(
 
         var seriesScanned = 0;
         var filesMatched = 0;
+        var orphanedFiles = 0;
 
         foreach (var series in allSeries)
         {
             if (!series.Episodes.Any(e => e.Files.Any(f => f.Side == FileSide.Source)))
             {
                 ClearDestinationFiles(series);
+                ClearOrphans(series);
                 continue;
             }
 
@@ -51,18 +54,21 @@ public class DestinationSyncService(
             if (leafFolder is null || !destinationFolders.TryGetValue(leafFolder, out var destFolder))
             {
                 ClearDestinationFiles(series);
+                ClearOrphans(series);
                 continue;
             }
 
             seriesScanned++;
-            filesMatched += SyncSeriesDestinationFiles(series, destFolder, now);
+            var (matched, orphaned) = SyncSeriesDestinationFiles(series, destFolder, now);
+            filesMatched += matched;
+            orphanedFiles += orphaned;
         }
 
         await db.SaveChangesAsync(ct);
-        return new DestinationSyncResult(seriesScanned, filesMatched);
+        return new DestinationSyncResult(seriesScanned, filesMatched, orphanedFiles);
     }
 
-    private static int SyncSeriesDestinationFiles(Series series, string destFolder, DateTimeOffset now)
+    private static (int Matched, int Orphaned) SyncSeriesDestinationFiles(Series series, string destFolder, DateTimeOffset now)
     {
         var episodesBySourceStem = series.Episodes
             .Select(e => new { Episode = e, Source = e.Files.FirstOrDefault(f => f.Side == FileSide.Source) })
@@ -73,16 +79,24 @@ public class DestinationSyncService(
                 StringComparer.OrdinalIgnoreCase);
 
         var matchedEpisodeIds = new HashSet<int>();
+        var observedOrphans = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var matchCount = 0;
+        var orphanCount = 0;
 
         foreach (var path in Directory.EnumerateFiles(destFolder, $"*{DestinationExtension}", SearchOption.AllDirectories))
         {
-            var stem = Path.GetFileNameWithoutExtension(path);
-            var episodes = episodesBySourceStem[stem].ToList();
-            if (episodes.Count == 0) continue;
-
             var relativePath = Path.GetRelativePath(destFolder, path);
             var size = new FileInfo(path).Length;
+            var stem = Path.GetFileNameWithoutExtension(path);
+            var episodes = episodesBySourceStem[stem].ToList();
+
+            if (episodes.Count == 0)
+            {
+                UpsertOrphan(series, relativePath, size, now);
+                observedOrphans.Add(relativePath);
+                orphanCount++;
+                continue;
+            }
 
             foreach (var episode in episodes)
             {
@@ -98,7 +112,15 @@ public class DestinationSyncService(
             RemoveFile(episode, FileSide.Destination);
         }
 
-        return matchCount;
+        var staleOrphans = series.OrphanedDestinationFiles
+            .Where(o => !observedOrphans.Contains(o.RelativePath))
+            .ToList();
+        foreach (var stale in staleOrphans)
+        {
+            series.OrphanedDestinationFiles.Remove(stale);
+        }
+
+        return (matchCount, orphanCount);
     }
 
     private static void ClearDestinationFiles(Series series)
@@ -106,6 +128,31 @@ public class DestinationSyncService(
         foreach (var episode in series.Episodes)
         {
             RemoveFile(episode, FileSide.Destination);
+        }
+    }
+
+    private static void ClearOrphans(Series series)
+    {
+        series.OrphanedDestinationFiles.Clear();
+    }
+
+    private static void UpsertOrphan(Series series, string relativePath, long sizeBytes, DateTimeOffset now)
+    {
+        var existing = series.OrphanedDestinationFiles
+            .FirstOrDefault(o => string.Equals(o.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            series.OrphanedDestinationFiles.Add(new OrphanedDestinationFile
+            {
+                RelativePath = relativePath,
+                SizeBytes = sizeBytes,
+                ObservedAt = now,
+            });
+        }
+        else
+        {
+            existing.SizeBytes = sizeBytes;
+            existing.ObservedAt = now;
         }
     }
 

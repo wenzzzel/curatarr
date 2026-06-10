@@ -11,14 +11,19 @@ public record SeriesDiffRow(
     string? SourceFolder,
     string? DestinationFolder,
     int SourceEpisodes,
-    int DestinationEpisodes)
+    int DestinationEpisodes,
+    int OrphanedFiles)
 {
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
     public int MissingEpisodes => Math.Max(0, SourceEpisodes - DestinationEpisodes);
 }
 
-public record SeriesDetail(string Title, int SonarrId, IReadOnlyList<EpisodeDiffRow> Episodes);
+public record SeriesDetail(
+    string Title,
+    int SonarrId,
+    IReadOnlyList<EpisodeDiffRow> Episodes,
+    IReadOnlyList<OrphanedFileRow> OrphanedFiles);
 
 public record EpisodeDiffRow(
     int SonarrId,
@@ -31,6 +36,8 @@ public record EpisodeDiffRow(
     public bool HasSource => SourceFile is not null;
     public bool HasDestination => DestinationFile is not null;
 }
+
+public record OrphanedFileRow(string RelativePath, long SizeBytes);
 
 public class SeriesDiffService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
@@ -50,6 +57,7 @@ public class SeriesDiffService(
                 s.Path,
                 SourceEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Source)),
                 DestinationEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Destination)),
+                OrphanedFiles = s.OrphanedDestinationFiles.Count(),
             })
             .ToListAsync(ct);
 
@@ -76,7 +84,8 @@ public class SeriesDiffService(
                 sourceFolder,
                 destinationMatch,
                 series.SourceEpisodes,
-                series.DestinationEpisodes));
+                series.DestinationEpisodes,
+                series.OrphanedFiles));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -88,7 +97,8 @@ public class SeriesDiffService(
                 SourceFolder: null,
                 DestinationFolder: folder,
                 SourceEpisodes: 0,
-                DestinationEpisodes: 0));
+                DestinationEpisodes: 0,
+                OrphanedFiles: 0));
         }
 
         return [.. rows.OrderBy(r => r.Title)];
@@ -101,6 +111,7 @@ public class SeriesDiffService(
         var series = await db.Series
             .Include(s => s.Episodes)
             .ThenInclude(e => e.Files)
+            .Include(s => s.OrphanedDestinationFiles)
             .FirstOrDefaultAsync(s => s.SonarrId == sonarrId, ct);
 
         if (series is null) return null;
@@ -117,6 +128,11 @@ public class SeriesDiffService(
                 e.DestinationFile is { } df ? Path.GetFileName(df.RelativePath) : null))
             .ToList();
 
-        return new SeriesDetail(series.Title, series.SonarrId, episodes);
+        var orphans = series.OrphanedDestinationFiles
+            .OrderBy(o => o.RelativePath)
+            .Select(o => new OrphanedFileRow(o.RelativePath, o.SizeBytes))
+            .ToList();
+
+        return new SeriesDetail(series.Title, series.SonarrId, episodes, orphans);
     }
 }
