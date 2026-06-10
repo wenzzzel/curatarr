@@ -13,11 +13,5 @@ public static class SonarrEndpoints
             var status = await sonarr.GetSystemStatusAsync(ct);
             return Results.Ok(status);
         });
-
-        group.MapPost("/sync/series", async (SonarrSyncService sync, CancellationToken ct) =>
-        {
-            var count = await sync.SyncSeriesAsync(ct);
-            return Results.Ok(new { synced = count });
-        });
     }
 }

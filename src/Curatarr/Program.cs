@@ -32,6 +32,7 @@ builder.Services.Configure<DestinationOptions>(
     builder.Configuration.GetSection(DestinationOptions.SectionName));
 
 builder.Services.AddSingleton<DestinationScanner>();
+builder.Services.AddScoped<DestinationSyncService>();
 builder.Services.AddScoped<SeriesDiffService>();
 
 var app = builder.Build();
@@ -57,5 +58,6 @@ app.MapRazorComponents<App>()
 
 app.MapHealthEndpoints();
 app.MapSonarrEndpoints();
+app.MapSyncEndpoints();
 
 await app.RunAsync();

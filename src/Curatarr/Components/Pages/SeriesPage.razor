@@ -20,8 +20,10 @@ else
         <thead>
             <tr>
                 <th>Title</th>
-                <th>Source</th>
-                <th>Destination</th>
+                <th>Source folder</th>
+                <th>Destination folder</th>
+                <th>Source episodes</th>
+                <th>Destination episodes</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -32,6 +34,8 @@ else
                     <td>@row.Title</td>
                     <td>@(row.SourceFolder ?? "—")</td>
                     <td>@(row.DestinationFolder ?? "—")</td>
+                    <td>@row.SourceEpisodes</td>
+                    <td>@row.DestinationEpisodes</td>
                     <td>@StatusFor(row)</td>
                 </tr>
             }
@@ -49,9 +53,11 @@ else
 
     private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
     {
-        (true, true) => "OK",
-        (true, false) => "Missing in destination",
         (false, true) => "Orphaned in destination",
+        (true, false) => "Missing in destination",
+        (true, true) when row.MissingEpisodes == 0 && row.SourceEpisodes > 0 => "OK",
+        (true, true) when row.MissingEpisodes > 0 => $"{row.MissingEpisodes} missing",
+        (true, true) => "No episodes synced yet",
         _ => "?",
     };
 }
