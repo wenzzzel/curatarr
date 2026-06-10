@@ -18,6 +18,20 @@ public record SeriesDiffRow(
     public int MissingEpisodes => Math.Max(0, SourceEpisodes - DestinationEpisodes);
 }
 
+public record SeriesDetail(string Title, int SonarrId, IReadOnlyList<EpisodeDiffRow> Episodes);
+
+public record EpisodeDiffRow(
+    int SonarrId,
+    int SeasonNumber,
+    int EpisodeNumber,
+    string Title,
+    string? SourceFile,
+    string? DestinationFile)
+{
+    public bool HasSource => SourceFile is not null;
+    public bool HasDestination => DestinationFile is not null;
+}
+
 public class SeriesDiffService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
     DestinationScanner scanner)
@@ -77,5 +91,31 @@ public class SeriesDiffService(
         }
 
         return rows.OrderBy(r => r.Title).ToList();
+    }
+
+    public async Task<SeriesDetail?> GetSeriesDetailAsync(int sonarrId, CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
+        var series = await db.Series
+            .Include(s => s.Episodes)
+            .ThenInclude(e => e.Files)
+            .FirstOrDefaultAsync(s => s.SonarrId == sonarrId, ct);
+
+        if (series is null) return null;
+
+        var episodes = series.Episodes
+            .OrderBy(e => e.SeasonNumber)
+            .ThenBy(e => e.EpisodeNumber)
+            .Select(e => new EpisodeDiffRow(
+                e.SonarrId,
+                e.SeasonNumber,
+                e.EpisodeNumber,
+                e.Title,
+                e.SourceFile is { } sf ? Path.GetFileName(sf.RelativePath) : null,
+                e.DestinationFile is { } df ? Path.GetFileName(df.RelativePath) : null))
+            .ToList();
+
+        return new SeriesDetail(series.Title, series.SonarrId, episodes);
     }
 }

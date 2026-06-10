@@ -1,0 +1,67 @@
+@page "/series/{SonarrId:int}"
+@using Curatarr.Services.Diff
+@inject SeriesDiffService Diff
+
+<PageTitle>@(detail?.Title ?? "Series")</PageTitle>
+
+<p><a href="/series">← All series</a></p>
+
+@if (!loaded)
+{
+    <p>Loading…</p>
+}
+else if (detail is null)
+{
+    <p>Series not found.</p>
+}
+else
+{
+    <h1>@detail.Title</h1>
+    <p>@detail.Episodes.Count episodes</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Episode</th>
+                <th>Title</th>
+                <th>Source file</th>
+                <th>Destination file</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ep in detail.Episodes)
+            {
+                <tr>
+                    <td>S@(ep.SeasonNumber.ToString("00"))E@(ep.EpisodeNumber.ToString("00"))</td>
+                    <td>@ep.Title</td>
+                    <td>@(ep.SourceFile ?? "—")</td>
+                    <td>@(ep.DestinationFile ?? "—")</td>
+                    <td>@StatusFor(ep)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public int SonarrId { get; set; }
+
+    private SeriesDetail? detail;
+    private bool loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loaded = false;
+        detail = await Diff.GetSeriesDetailAsync(SonarrId);
+        loaded = true;
+    }
+
+    private static string StatusFor(EpisodeDiffRow ep) => (ep.HasSource, ep.HasDestination) switch
+    {
+        (true, true) => "OK",
+        (true, false) => "Missing in destination",
+        (false, true) => "Orphaned in destination",
+        _ => "No file",
+    };
+}

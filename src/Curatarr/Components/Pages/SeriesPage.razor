@@ -31,7 +31,16 @@ else
             @foreach (var row in rows)
             {
                 <tr>
-                    <td>@row.Title</td>
+                    <td>
+                        @if (row.SonarrId is { } id)
+                        {
+                            <a href="/series/@id">@row.Title</a>
+                        }
+                        else
+                        {
+                            @row.Title
+                        }
+                    </td>
                     <td>@(row.SourceFolder ?? "—")</td>
                     <td>@(row.DestinationFolder ?? "—")</td>
                     <td>@row.SourceEpisodes</td>
