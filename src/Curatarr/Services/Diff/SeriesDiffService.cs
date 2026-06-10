@@ -41,6 +41,7 @@ public class SeriesDiffService(
         await using var db = await dbFactory.CreateDbContextAsync(ct);
 
         var seriesWithCounts = await db.Series
+            .Where(s => s.Episodes.Any(e => e.Files.Any(f => f.Side == FileSide.Source)))
             .OrderBy(s => s.Title)
             .Select(s => new
             {
@@ -90,7 +91,7 @@ public class SeriesDiffService(
                 DestinationEpisodes: 0));
         }
 
-        return rows.OrderBy(r => r.Title).ToList();
+        return [.. rows.OrderBy(r => r.Title)];
     }
 
     public async Task<SeriesDetail?> GetSeriesDetailAsync(int sonarrId, CancellationToken ct = default)

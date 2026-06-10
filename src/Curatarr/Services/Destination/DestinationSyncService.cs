@@ -41,6 +41,12 @@ public class DestinationSyncService(
 
         foreach (var series in allSeries)
         {
+            if (!series.Episodes.Any(e => e.Files.Any(f => f.Side == FileSide.Source)))
+            {
+                ClearDestinationFiles(series);
+                continue;
+            }
+
             var leafFolder = string.IsNullOrEmpty(series.Path) ? null : Path.GetFileName(series.Path);
             if (leafFolder is null || !destinationFolders.TryGetValue(leafFolder, out var destFolder))
             {
