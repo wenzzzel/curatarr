@@ -82,7 +82,7 @@ public class SeriesDiffService(
                 s.Path,
                 SourceEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Source)),
                 DestinationEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Destination)),
-                OrphanedFiles = s.OrphanedDestinationFiles.Count(),
+                OrphanedFiles = s.OrphanedDestinationFiles.Count,
                 MissingSubtitles = s.Episodes
                     .Where(e => e.Files.Any(f => f.Side == FileSide.Source) && e.Files.Any(f => f.Side == FileSide.Destination))
                     .SelectMany(e => e.Subtitles.Where(srcSub => srcSub.Side == FileSide.Source))

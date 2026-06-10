@@ -26,7 +26,8 @@ else
                  SortMode="SortMode.Multiple"
                  Hover="true"
                  Dense="true"
-                 QuickFilter="@EpisodeQuickFilter">
+                 QuickFilter="@EpisodeQuickFilter"
+                 RowsPerPage="25">
         <ToolBarContent>
             <MudTextField @bind-Value="episodeSearch"
                           Placeholder="Search episodes"
@@ -71,7 +72,8 @@ else
                      Filterable="true"
                      SortMode="SortMode.Multiple"
                      Hover="true"
-                     Dense="true">
+                     Dense="true"
+                     RowsPerPage="25">
             <Columns>
                 <PropertyColumn Property="x => x.RelativePath" Title="Path" />
                 <TemplateColumn Title="Size" SortBy="@(o => o.SizeBytes)">
