@@ -159,6 +159,7 @@ public class SeriesDiffService(
         if (series is null) return null;
 
         var episodes = series.Episodes
+            .Where(e => e.SourceFile is not null)
             .OrderBy(e => e.SeasonNumber)
             .ThenBy(e => e.EpisodeNumber)
             .Select(e => new EpisodeDiffRow(
