@@ -1,71 +1,87 @@
 @page "/series/{SonarrId:int}"
 @using Curatarr.Services.Diff
+@using Curatarr.Services.Subtitle
 @inject SeriesDiffService Diff
 
 <PageTitle>@(detail?.Title ?? "Series")</PageTitle>
 
-<p><a href="/series">← All series</a></p>
+<MudLink Href="/series" Class="mb-4 d-inline-block">← All series</MudLink>
 
 @if (!loaded)
 {
-    <p>Loading…</p>
+    <MudProgressCircular Indeterminate="true" />
 }
 else if (detail is null)
 {
-    <p>Series not found.</p>
+    <MudText>Series not found.</MudText>
 }
 else
 {
-    <h1>@detail.Title</h1>
-    <p>@detail.Episodes.Count episodes</p>
+    <MudText Typo="Typo.h4" Class="mb-2">@detail.Title</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">@detail.Episodes.Count episodes</MudText>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Episode</th>
-                <th>Title</th>
-                <th>File path</th>
-                <th>Subtitles</th>
-                <th>Missing subtitles</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var ep in detail.Episodes)
-            {
-                <tr>
-                    <td>S@(ep.SeasonNumber.ToString("00"))E@(ep.EpisodeNumber.ToString("00"))</td>
-                    <td>@ep.Title</td>
-                    <td>@(ep.DestinationFile ?? "—")</td>
-                    <td>@FormatSubtitles(ep.DestinationSubtitles)</td>
-                    <td>@FormatSubtitles(ep.MissingSubtitles)</td>
-                    <td>@StatusFor(ep)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudDataGrid T="EpisodeDiffRow"
+                 Items="@detail.Episodes"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Hover="true"
+                 Dense="true"
+                 QuickFilter="@EpisodeQuickFilter">
+        <ToolBarContent>
+            <MudTextField @bind-Value="episodeSearch"
+                          Placeholder="Search episodes"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Immediate="true"
+                          Clearable="true" />
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="Episode" SortBy="@(e => e.SeasonNumber * 1000 + e.EpisodeNumber)">
+                <CellTemplate>S@(context.Item.SeasonNumber.ToString("00"))E@(context.Item.EpisodeNumber.ToString("00"))</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.Title" Title="Title" />
+            <TemplateColumn Title="File path" SortBy="@(e => e.DestinationFile ?? string.Empty)">
+                <CellTemplate>@(context.Item.DestinationFile ?? "—")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Subtitles" Sortable="false" Filterable="false">
+                <CellTemplate>@FormatSubtitles(context.Item.DestinationSubtitles)</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Missing subtitles" SortBy="@(e => e.MissingSubtitles.Count)">
+                <CellTemplate>@FormatSubtitles(context.Item.MissingSubtitles)</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" SortBy="@(e => StatusFor(e))">
+                <CellTemplate>@StatusFor(context.Item)</CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="EpisodeDiffRow" />
+        </PagerContent>
+    </MudDataGrid>
 
     @if (detail.OrphanedFiles.Count > 0)
     {
-        <h2>Orphaned destination files (@detail.OrphanedFiles.Count)</h2>
-        <p>Files present in the destination that don't match any source episode. Usually leftovers from a file upgrade.</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Path</th>
-                    <th>Size</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var orphan in detail.OrphanedFiles)
-                {
-                    <tr>
-                        <td>@orphan.RelativePath</td>
-                        <td>@FormatSize(orphan.SizeBytes)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <MudText Typo="Typo.h5" Class="mt-8 mb-2">Orphaned destination files (@detail.OrphanedFiles.Count)</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Files present in the destination that don't match any source episode. Usually leftovers from a file upgrade.
+        </MudText>
+
+        <MudDataGrid T="OrphanedFileRow"
+                     Items="@detail.OrphanedFiles"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     Hover="true"
+                     Dense="true">
+            <Columns>
+                <PropertyColumn Property="x => x.RelativePath" Title="Path" />
+                <TemplateColumn Title="Size" SortBy="@(o => o.SizeBytes)">
+                    <CellTemplate>@FormatSize(context.Item.SizeBytes)</CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="OrphanedFileRow" />
+            </PagerContent>
+        </MudDataGrid>
     }
 }
 
@@ -74,12 +90,20 @@ else
 
     private SeriesDetail? detail;
     private bool loaded;
+    private string episodeSearch = string.Empty;
 
     protected override async Task OnParametersSetAsync()
     {
         loaded = false;
         detail = await Diff.GetSeriesDetailAsync(SonarrId);
         loaded = true;
+    }
+
+    private bool EpisodeQuickFilter(EpisodeDiffRow ep)
+    {
+        if (string.IsNullOrWhiteSpace(episodeSearch)) return true;
+        return ep.Title.Contains(episodeSearch, StringComparison.OrdinalIgnoreCase)
+            || (ep.DestinationFile?.Contains(episodeSearch, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static string StatusFor(EpisodeDiffRow ep) => (ep.HasSource, ep.HasDestination) switch
@@ -95,10 +119,10 @@ else
             ? "—"
             : string.Join(", ", subs.Select(s => $"{s.Suffix} ({OriginLabel(s.Origin)})"));
 
-    private static string OriginLabel(Curatarr.Services.Subtitle.SubtitleOrigin origin) => origin switch
+    private static string OriginLabel(SubtitleOrigin origin) => origin switch
     {
-        Curatarr.Services.Subtitle.SubtitleOrigin.Original => "orig",
-        Curatarr.Services.Subtitle.SubtitleOrigin.Downloaded => "dl",
+        SubtitleOrigin.Original => "orig",
+        SubtitleOrigin.Downloaded => "dl",
         _ => "?",
     };
 

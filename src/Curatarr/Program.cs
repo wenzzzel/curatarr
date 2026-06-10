@@ -8,11 +8,14 @@ using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddMudServices();
 
 builder.Services.AddDbContextFactory<CuratarrDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Curatarr")));

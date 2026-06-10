@@ -4,68 +4,77 @@
 
 <PageTitle>Series</PageTitle>
 
-<h1>Series</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Series</MudText>
 
 @if (rows is null)
 {
-    <p>Loading…</p>
-}
-else if (rows.Count == 0)
-{
-    <p>Nothing in source or destination yet.</p>
+    <MudProgressCircular Indeterminate="true" />
 }
 else
 {
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Source folder</th>
-                <th>Destination folder</th>
-                <th>Source episodes</th>
-                <th>Destination episodes</th>
-                <th>Orphaned</th>
-                <th>Original subs</th>
-                <th>Downloaded subs</th>
-                <th>Missing subtitles</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in rows)
-            {
-                <tr>
-                    <td>
-                        @if (row.SonarrId is { } id)
-                        {
-                            <a href="/series/@id">@row.Title</a>
-                        }
-                        else
-                        {
-                            @row.Title
-                        }
-                    </td>
-                    <td>@(row.SourceFolder ?? "—")</td>
-                    <td>@(row.DestinationFolder ?? "—")</td>
-                    <td>@row.SourceEpisodes</td>
-                    <td>@row.DestinationEpisodes</td>
-                    <td>@row.OrphanedFiles</td>
-                    <td>@row.OriginalSubtitles</td>
-                    <td>@row.DownloadedSubtitles</td>
-                    <td>@row.MissingSubtitles</td>
-                    <td>@StatusFor(row)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudDataGrid T="SeriesDiffRow"
+                 Items="@rows"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Hover="true"
+                 Dense="true"
+                 QuickFilter="@QuickFilter">
+        <ToolBarContent>
+            <MudTextField @bind-Value="searchString"
+                          Placeholder="Search"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Immediate="true"
+                          Clearable="true" />
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="Title" SortBy="@(r => r.Title)">
+                <CellTemplate>
+                    @if (context.Item.SonarrId is { } id)
+                    {
+                        <MudLink Href="@($"/series/{id}")">@context.Item.Title</MudLink>
+                    }
+                    else
+                    {
+                        @context.Item.Title
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.SourceFolder" Title="Source folder" />
+            <PropertyColumn Property="x => x.DestinationFolder" Title="Destination folder" />
+            <PropertyColumn Property="x => x.SourceEpisodes" Title="Source eps" />
+            <PropertyColumn Property="x => x.DestinationEpisodes" Title="Destination eps" />
+            <PropertyColumn Property="x => x.OrphanedFiles" Title="Orphaned" />
+            <PropertyColumn Property="x => x.OriginalSubtitles" Title="Original subs" />
+            <PropertyColumn Property="x => x.DownloadedSubtitles" Title="Downloaded subs" />
+            <PropertyColumn Property="x => x.MissingSubtitles" Title="Missing subs" />
+            <TemplateColumn Title="Status" SortBy="@(r => StatusFor(r))">
+                <CellTemplate>@StatusFor(context.Item)</CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="SeriesDiffRow" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText>Nothing in source or destination yet.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
 }
 
 @code {
     private IReadOnlyList<SeriesDiffRow>? rows;
+    private string searchString = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         rows = await Diff.GetSeriesDiffAsync();
+    }
+
+    private bool QuickFilter(SeriesDiffRow row)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return row.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
