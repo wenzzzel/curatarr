@@ -46,10 +46,38 @@ else
                 <CellTemplate>@(context.Item.DestinationFile ?? "—")</CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Subtitles" Sortable="false" Filterable="false">
-                <CellTemplate>@FormatSubtitles(context.Item.DestinationSubtitles)</CellTemplate>
+                <CellTemplate>
+                    @if (context.Item.DestinationSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.DestinationSubtitles)
+                            {
+                                <MudChip T="string" Color="@SubtitleColor(sub.Origin)" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Missing subtitles" SortBy="@(e => e.MissingSubtitles.Count)">
-                <CellTemplate>@FormatSubtitles(context.Item.MissingSubtitles)</CellTemplate>
+                <CellTemplate>
+                    @if (context.Item.MissingSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.MissingSubtitles)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
             </TemplateColumn>
             <TemplateColumn Title="Status" SortBy="@(e => StatusBadgeFor(e).Severity)">
                 <CellTemplate>
@@ -130,16 +158,11 @@ else
         _ => new("No file", Color.Default, Icons.Material.Filled.HelpOutline, 4),
     };
 
-    private static string FormatSubtitles(IReadOnlyList<SubtitleEntry> subs) =>
-        subs.Count == 0
-            ? "—"
-            : string.Join(", ", subs.Select(s => $"{s.Suffix} ({OriginLabel(s.Origin)})"));
-
-    private static string OriginLabel(SubtitleOrigin origin) => origin switch
+    private static Color SubtitleColor(SubtitleOrigin origin) => origin switch
     {
-        SubtitleOrigin.Original => "orig",
-        SubtitleOrigin.Downloaded => "dl",
-        _ => "?",
+        SubtitleOrigin.Original => Color.Info,
+        SubtitleOrigin.Downloaded => Color.Default,
+        _ => Color.Default,
     };
 
     private static string FormatSize(long bytes) => bytes switch
