@@ -1,9 +1,100 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@using Curatarr.Services.Destination
+@using Curatarr.Services.Sonarr
+@using Curatarr.Services.Subtitle
+@inject SonarrSyncService SonarrSync
+@inject DestinationSyncService DestinationSync
+@inject SubtitleSyncService SubtitleSync
+@inject ISnackbar Snackbar
 
-@Body
+<MudThemeProvider @ref="themeProvider" @bind-IsDarkMode="isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="ToggleDrawer" />
+        <MudText Typo="Typo.h6">curatarr</MudText>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Sync"
+                   Color="Color.Inherit"
+                   Variant="Variant.Text"
+                   OnClick="RunSync"
+                   Disabled="@isSyncing">
+            @(isSyncing ? "Syncing…" : "Sync")
+        </MudButton>
+    </MudAppBar>
+    <MudDrawer @bind-Open="drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+            <MudNavLink Href="/series" Icon="@Icons.Material.Filled.LiveTv">Series</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+    <MudMainContent>
+        <div class="pa-4">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private bool drawerOpen = true;
+    private bool isSyncing;
+    private bool isDarkMode;
+    private MudThemeProvider themeProvider = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isDarkMode = await themeProvider.GetSystemDarkModeAsync();
+            await themeProvider.WatchSystemDarkModeAsync(OnSystemPreferenceChanged);
+            StateHasChanged();
+        }
+    }
+
+    private Task OnSystemPreferenceChanged(bool newValue)
+    {
+        isDarkMode = newValue;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void ToggleDrawer() => drawerOpen = !drawerOpen;
+
+    private async Task RunSync()
+    {
+        if (isSyncing) return;
+        isSyncing = true;
+        try
+        {
+            var sonarrResult = await SonarrSync.SyncAsync();
+            var destResult = await DestinationSync.SyncAsync();
+            var subResult = await SubtitleSync.SyncAsync();
+
+            Snackbar.Add(
+                $"Sync complete — {sonarrResult.SeriesCount} series, {sonarrResult.EpisodeCount} episodes, " +
+                $"{destResult.FilesMatched} destination files ({destResult.OrphanedFiles} orphaned), " +
+                $"{subResult.SourceFound}/{subResult.DestinationFound} source/destination subtitles.",
+                Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Sync failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+}

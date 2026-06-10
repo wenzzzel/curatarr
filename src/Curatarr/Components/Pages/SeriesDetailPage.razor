@@ -1,0 +1,198 @@
+@page "/series/{SonarrId:int}"
+@using Curatarr.Services.Diff
+@using Curatarr.Services.Subtitle
+@inject SeriesDiffService Diff
+
+<PageTitle>@(detail?.Title ?? "Series")</PageTitle>
+
+<MudLink Href="/series" Class="mb-4 d-inline-block">← All series</MudLink>
+
+@if (!loaded)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (detail is null)
+{
+    <MudText>Series not found.</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-2">@detail.Title</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">@detail.Episodes.Count episodes</MudText>
+
+    <MudDataGrid T="EpisodeDiffRow"
+                 Items="@detail.Episodes"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Hover="true"
+                 Dense="true"
+                 QuickFilter="@EpisodeQuickFilter"
+                 RowsPerPage="25">
+        <ToolBarContent>
+            <MudTextField @bind-Value="episodeSearch"
+                          Placeholder="Search episodes"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Immediate="true"
+                          Clearable="true" />
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="Episode" Sortable="true" SortBy="@(e => e.SeasonNumber * 1000 + e.EpisodeNumber)">
+                <CellTemplate>S@(context.Item.SeasonNumber.ToString("00"))E@(context.Item.EpisodeNumber.ToString("00"))</CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.Title" Title="Title" />
+            <TemplateColumn Title="File path" Sortable="true" SortBy="@(e => e.DestinationFile ?? string.Empty)">
+                <CellTemplate>@(context.Item.DestinationFile ?? "—")</CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Subtitles" Sortable="false" Filterable="false">
+                <CellTemplate>
+                    @if (context.Item.DestinationSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.DestinationSubtitles)
+                            {
+                                <MudChip T="string" Color="@SubtitleColor(sub.Origin)" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Missing subtitles" Sortable="true" SortBy="@(e => e.MissingSubtitles.Count)">
+                <CellTemplate>
+                    @if (context.Item.MissingSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.MissingSubtitles)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Excessive subtitles" Sortable="true" SortBy="@(e => e.ExcessiveSubtitles.Count)">
+                <CellTemplate>
+                    @if (context.Item.ExcessiveSubtitles.Count == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var sub in context.Item.ExcessiveSubtitles)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                            }
+                        </div>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Status" Sortable="true" SortBy="@(e => StatusBadgeFor(e).Severity)">
+                <CellTemplate>
+                    @{
+                        var badge = StatusBadgeFor(context.Item);
+                    }
+                    <MudChip T="string"
+                             Color="@badge.Color"
+                             Icon="@badge.Icon"
+                             Size="Size.Small"
+                             Variant="Variant.Filled">@badge.Label</MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="EpisodeDiffRow" />
+        </PagerContent>
+    </MudDataGrid>
+
+    @if (detail.OrphanedFiles.Count > 0)
+    {
+        <MudText Typo="Typo.h5" Class="mt-8 mb-2">Orphaned destination files (@detail.OrphanedFiles.Count)</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Files present in the destination that don't match any source episode. Usually leftovers from a file upgrade.
+        </MudText>
+
+        <MudDataGrid T="OrphanedFileRow"
+                     Items="@detail.OrphanedFiles"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     Hover="true"
+                     Dense="true"
+                     RowsPerPage="25">
+            <Columns>
+                <PropertyColumn Property="x => x.RelativePath" Title="Path" />
+                <TemplateColumn Title="Size" Sortable="true" SortBy="@(o => o.SizeBytes)">
+                    <CellTemplate>@FormatSize(context.Item.SizeBytes)</CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="OrphanedFileRow" />
+            </PagerContent>
+        </MudDataGrid>
+    }
+}
+
+@code {
+    [Parameter] public int SonarrId { get; set; }
+
+    private SeriesDetail? detail;
+    private bool loaded;
+    private string episodeSearch = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loaded = false;
+        detail = await Diff.GetSeriesDetailAsync(SonarrId);
+        loaded = true;
+    }
+
+    private bool EpisodeQuickFilter(EpisodeDiffRow ep)
+    {
+        if (string.IsNullOrWhiteSpace(episodeSearch)) return true;
+        return ep.Title.Contains(episodeSearch, StringComparison.OrdinalIgnoreCase)
+            || (ep.DestinationFile?.Contains(episodeSearch, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private record StatusBadge(string Label, Color Color, string Icon, int Severity);
+
+    private static StatusBadge StatusBadgeFor(EpisodeDiffRow ep) => (ep.HasSource, ep.HasDestination) switch
+    {
+        (true, true) when ep.MissingSubtitles.Count == 0 && ep.ExcessiveSubtitles.Count == 0
+            => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
+        (true, true)
+            => new(string.Join(", ", BuildEpisodeIssues(ep)), Color.Warning, Icons.Material.Filled.Subtitles, 1),
+        (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 3),
+        (false, true) => new("Orphaned in destination", Color.Info, Icons.Material.Filled.FileCopy, 2),
+        _ => new("No file", Color.Default, Icons.Material.Filled.HelpOutline, 4),
+    };
+
+    private static IEnumerable<string> BuildEpisodeIssues(EpisodeDiffRow ep)
+    {
+        if (ep.MissingSubtitles.Count > 0) yield return $"{ep.MissingSubtitles.Count} missing subs";
+        if (ep.ExcessiveSubtitles.Count > 0) yield return $"{ep.ExcessiveSubtitles.Count} excessive subs";
+    }
+
+    private static Color SubtitleColor(SubtitleOrigin origin) => origin switch
+    {
+        SubtitleOrigin.Original => Color.Info,
+        SubtitleOrigin.Downloaded => Color.Default,
+        _ => Color.Default,
+    };
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1_000_000_000 => $"{bytes / 1_000_000_000d:0.0} GB",
+        >= 1_000_000 => $"{bytes / 1_000_000d:0.0} MB",
+        >= 1_000 => $"{bytes / 1_000d:0.0} KB",
+        _ => $"{bytes} B",
+    };
+}

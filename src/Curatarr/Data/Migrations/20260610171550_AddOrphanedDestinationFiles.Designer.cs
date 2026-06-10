@@ -3,6 +3,7 @@ using System;
 using Curatarr.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Curatarr.Data.Migrations
 {
     [DbContext(typeof(CuratarrDbContext))]
-    partial class CuratarrDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610171550_AddOrphanedDestinationFiles")]
+    partial class AddOrphanedDestinationFiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -148,42 +151,6 @@ namespace Curatarr.Data.Migrations
                     b.ToTable("Series");
                 });
 
-            modelBuilder.Entity("Curatarr.Models.SubtitleFile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("EpisodeId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTimeOffset>("ObservedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RelativePath")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Side")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Suffix")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EpisodeId", "Side", "Suffix")
-                        .IsUnique();
-
-                    b.ToTable("SubtitleFiles");
-                });
-
             modelBuilder.Entity("Curatarr.Models.Episode", b =>
                 {
                     b.HasOne("Curatarr.Models.Series", "Series")
@@ -217,22 +184,9 @@ namespace Curatarr.Data.Migrations
                     b.Navigation("Series");
                 });
 
-            modelBuilder.Entity("Curatarr.Models.SubtitleFile", b =>
-                {
-                    b.HasOne("Curatarr.Models.Episode", "Episode")
-                        .WithMany("Subtitles")
-                        .HasForeignKey("EpisodeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Episode");
-                });
-
             modelBuilder.Entity("Curatarr.Models.Episode", b =>
                 {
                     b.Navigation("Files");
-
-                    b.Navigation("Subtitles");
                 });
 
             modelBuilder.Entity("Curatarr.Models.Series", b =>

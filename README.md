@@ -13,7 +13,7 @@ The two trees drift over time: upgrades land in source but the destination still
 
 ## Stack
 
-- ASP.NET Core + Blazor Server (UI)
+- ASP.NET Core + Blazor Server (UI), styled with [MudBlazor](https://mudblazor.com)
 - EF Core + SQLite (state)
 - Runs as a Docker container alongside the rest of the stack
 
@@ -27,23 +27,23 @@ Configuration lives in `src/Curatarr/appsettings.json` and can be overridden wit
 
 ## Running in Docker
 
-Build the image from the repo root, then run it with a persistent `/config` volume and (optionally) your destination tree mounted in read-only:
+Pull from Docker Hub (or build locally with `docker build -t curatarr .`), then run with a persistent `/config` volume plus your source and destination trees mounted read-only:
 
 ```sh
-docker build -t curatarr .
-
 docker run -d \
   --name curatarr \
   -p 9595:8080 \
   -v /path/to/curatarr/config:/config \
+  -v /path/to/source:/media/source:ro \
   -v /path/to/destination:/media/destination:ro \
   -e Sonarr__Url=http://sonarr:8989 \
   -e Sonarr__ApiKey=your-api-key \
+  -e Source__Root=/media/source \
   -e Destination__Root=/media/destination \
-  curatarr
+  wenzzzel/curatarr:latest
 ```
 
-All settings can be overridden with environment variables using `__` as the section separator (e.g. `Sonarr__ApiKey`, `ConnectionStrings__Curatarr`). The SQLite database lives at `/config/curatarr.db` by default, so anything mounted at `/config` will persist across container restarts.
+All settings can be overridden with environment variables using `__` as the section separator (e.g. `Sonarr__ApiKey`, `ConnectionStrings__Curatarr`). The SQLite database lives at `/config/curatarr.db` by default, so anything mounted at `/config` persists across container restarts.
 
 The mounted `/config` directory must be writable by UID `1654` (the `app` user in Microsoft's .NET runtime image).
 
@@ -60,15 +60,17 @@ services:
       - "9595:8080"
     volumes:
       - /path/to/curatarr/config:/config
+      - /path/to/source:/media/source:ro
       - /path/to/destination:/media/destination:ro
     environment:
       Sonarr__Url: http://sonarr:8989
       Sonarr__ApiKey: your-api-key
+      Source__Root: /media/source
       Destination__Root: /media/destination
     restart: unless-stopped
 ```
 
-Start it with `docker compose up -d`. Swap `image:` for `build: .` if you want to build from a local checkout instead of pulling from Docker Hub.
+Start it with `docker compose up -d`. Swap `image:` for `build: .` to build from a local checkout instead of pulling from Docker Hub.
 
 ## Status
 

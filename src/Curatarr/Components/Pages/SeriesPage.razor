@@ -4,54 +4,148 @@
 
 <PageTitle>Series</PageTitle>
 
-<h1>Series</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Series</MudText>
 
 @if (rows is null)
 {
-    <p>Loading…</p>
-}
-else if (rows.Count == 0)
-{
-    <p>Nothing in source or destination yet.</p>
+    <MudProgressCircular Indeterminate="true" />
 }
 else
 {
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Source</th>
-                <th>Destination</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in rows)
-            {
-                <tr>
-                    <td>@row.Title</td>
-                    <td>@(row.SourceFolder ?? "—")</td>
-                    <td>@(row.DestinationFolder ?? "—")</td>
-                    <td>@StatusFor(row)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudDataGrid T="SeriesDiffRow"
+                 Items="@rows"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Hover="true"
+                 Dense="true"
+                 QuickFilter="@QuickFilter"
+                 RowsPerPage="25">
+        <ToolBarContent>
+            <MudTextField @bind-Value="searchString"
+                          Placeholder="Search"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Immediate="true"
+                          Clearable="true" />
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="Title" Sortable="true" SortBy="@(r => r.Title)">
+                <CellTemplate>
+                    @if (context.Item.SonarrId is { } id)
+                    {
+                        <MudLink Href="@($"/series/{id}")">@context.Item.Title</MudLink>
+                    }
+                    else
+                    {
+                        @context.Item.Title
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.SourceFolder" Title="Source folder" />
+            <PropertyColumn Property="x => x.DestinationFolder" Title="Destination folder" />
+            <TemplateColumn Title="Episodes" Sortable="true" SortBy="@(r => r.SourceEpisodes)">
+                <CellTemplate>
+                    <MudText Inline="true"
+                             Color="@(context.Item.MissingEpisodes > 0 ? Color.Error : Color.Default)">
+                        @context.Item.DestinationEpisodes / @context.Item.SourceEpisodes
+                    </MudText>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.OrphanedFiles" Title="Orphaned">
+                <CellTemplate>
+                    @if (context.Item.OrphanedFiles == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@context.Item.OrphanedFiles</MudChip>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="x => x.OriginalSubtitles" Title="Original subs" />
+            <PropertyColumn Property="x => x.DownloadedSubtitles" Title="Downloaded subs" />
+            <PropertyColumn Property="x => x.MissingSubtitles" Title="Missing subs">
+                <CellTemplate>
+                    @if (context.Item.MissingSubtitles == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@context.Item.MissingSubtitles</MudChip>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="x => x.ExcessiveSubtitles" Title="Excessive subs">
+                <CellTemplate>
+                    @if (context.Item.ExcessiveSubtitles == 0)
+                    {
+                        <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@context.Item.ExcessiveSubtitles</MudChip>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <TemplateColumn Title="Status" Sortable="true" SortBy="@(r => StatusBadgeFor(r).Severity)">
+                <CellTemplate>
+                    @{
+                        var badge = StatusBadgeFor(context.Item);
+                    }
+                    <MudChip T="string"
+                             Color="@badge.Color"
+                             Icon="@badge.Icon"
+                             Size="Size.Small"
+                             Variant="Variant.Filled">@badge.Label</MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="SeriesDiffRow" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText>Nothing in source or destination yet.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
 }
 
 @code {
     private IReadOnlyList<SeriesDiffRow>? rows;
+    private string searchString = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         rows = await Diff.GetSeriesDiffAsync();
     }
 
-    private static string StatusFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
+    private bool QuickFilter(SeriesDiffRow row)
     {
-        (true, true) => "OK",
-        (true, false) => "Missing in destination",
-        (false, true) => "Orphaned in destination",
-        _ => "?",
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return row.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private record StatusBadge(string Label, Color Color, string Icon, int Severity);
+
+    private static StatusBadge StatusBadgeFor(SeriesDiffRow row) => (row.InSource, row.InDestination) switch
+    {
+        (false, true) => new("Orphaned folder", Color.Info, Icons.Material.Filled.FolderOff, 2),
+        (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 4),
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0
+            => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
+        (true, true) when row.MissingEpisodes > 0
+            => new(string.Join(", ", BuildIssues(row)), Color.Error, Icons.Material.Filled.Error, 3),
+        (true, true) => new(string.Join(", ", BuildIssues(row)), Color.Warning, Icons.Material.Filled.Warning, 1),
+        _ => new("?", Color.Default, Icons.Material.Filled.HelpOutline, 5),
     };
+
+    private static IEnumerable<string> BuildIssues(SeriesDiffRow row)
+    {
+        if (row.MissingEpisodes > 0) yield return $"{row.MissingEpisodes} missing";
+        if (row.OrphanedFiles > 0) yield return $"{row.OrphanedFiles} orphaned";
+        if (row.MissingSubtitles > 0) yield return $"{row.MissingSubtitles} missing subs";
+        if (row.ExcessiveSubtitles > 0) yield return $"{row.ExcessiveSubtitles} excessive subs";
+    }
 }

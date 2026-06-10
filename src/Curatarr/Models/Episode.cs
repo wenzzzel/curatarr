@@ -22,6 +22,8 @@ public class Episode
 
     public List<EpisodeFile> Files { get; set; } = [];
 
+    public List<SubtitleFile> Subtitles { get; set; } = [];
+
     public EpisodeFile? SourceFile => Files.FirstOrDefault(f => f.Side == FileSide.Source);
 
     public EpisodeFile? DestinationFile => Files.FirstOrDefault(f => f.Side == FileSide.Destination);

@@ -1,16 +1,21 @@
 using Curatarr.Components;
 using Curatarr.Configuration;
 using Curatarr.Data;
+using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.Sonarr;
+using Curatarr.Services.Subtitle;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddMudServices();
 
 builder.Services.AddDbContextFactory<CuratarrDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Curatarr")));
@@ -31,6 +36,14 @@ builder.Services.Configure<DestinationOptions>(
     builder.Configuration.GetSection(DestinationOptions.SectionName));
 
 builder.Services.AddSingleton<DestinationScanner>();
+builder.Services.AddScoped<DestinationSyncService>();
+
+builder.Services.Configure<SourceOptions>(
+    builder.Configuration.GetSection(SourceOptions.SectionName));
+builder.Services.Configure<SubtitleOptions>(
+    builder.Configuration.GetSection(SubtitleOptions.SectionName));
+builder.Services.AddScoped<SubtitleSyncService>();
+
 builder.Services.AddScoped<SeriesDiffService>();
 
 var app = builder.Build();
@@ -54,18 +67,8 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapGet("/ping", () => "pong");
-
-app.MapGet("/sonarr/ping", async (SonarrClient sonarr, CancellationToken ct) =>
-{
-    var status = await sonarr.GetSystemStatusAsync(ct);
-    return Results.Ok(status);
-});
-
-app.MapPost("/sonarr/sync/series", async (SonarrSyncService sync, CancellationToken ct) =>
-{
-    var count = await sync.SyncSeriesAsync(ct);
-    return Results.Ok(new { synced = count });
-});
+app.MapHealthEndpoints();
+app.MapSonarrEndpoints();
+app.MapSyncEndpoints();
 
 await app.RunAsync();
