@@ -5,7 +5,7 @@ COPY src/Curatarr/Curatarr.csproj src/Curatarr/
 RUN dotnet restore src/Curatarr/Curatarr.csproj
 
 COPY src/Curatarr/ src/Curatarr/
-RUN dotnet publish src/Curatarr/Curatarr.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/Curatarr/Curatarr.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
