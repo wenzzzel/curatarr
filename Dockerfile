@@ -15,7 +15,8 @@ RUN mkdir -p /config && chown $APP_UID:$APP_UID /config
 VOLUME ["/config"]
 
 ENV ASPNETCORE_URLS=http://+:8080 \
-    ConnectionStrings__Curatarr="Data Source=/config/curatarr.db"
+    ConnectionStrings__Curatarr="Data Source=/config/curatarr.db" \
+    DataProtection__KeysPath=/config/data-protection-keys
 
 EXPOSE 8080
 USER $APP_UID

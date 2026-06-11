@@ -6,6 +6,7 @@ using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MudBlazor.Services;
@@ -16,6 +17,15 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddMudServices();
+
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    Directory.CreateDirectory(keysPath);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+        .SetApplicationName("Curatarr");
+}
 
 builder.Services.AddDbContextFactory<CuratarrDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Curatarr")));
