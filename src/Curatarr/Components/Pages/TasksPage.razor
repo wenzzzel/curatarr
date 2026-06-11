@@ -1,0 +1,70 @@
+@page "/tasks"
+@using Curatarr.Services.Destination
+@using Curatarr.Services.Sonarr
+@using Curatarr.Services.Subtitle
+@inject SonarrSyncService SonarrSync
+@inject DestinationSyncService DestinationSync
+@inject SubtitleSyncService SubtitleSync
+@inject ISnackbar Snackbar
+
+<PageTitle>Tasks</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Tasks</MudText>
+
+<MudCard Class="mb-4" Style="max-width: 640px;">
+    <MudCardContent>
+        <MudText Typo="Typo.h6">Sync</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Pull series and episodes from Sonarr, scan the destination tree for video and subtitle files,
+            and refresh the diff.
+        </MudText>
+        @if (lastResult is not null)
+        {
+            <MudAlert Severity="@lastSeverity" Dense="true" Class="mt-2">@lastResult</MudAlert>
+        }
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton StartIcon="@Icons.Material.Filled.Sync"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="RunSync"
+                   Disabled="@isSyncing">
+            @(isSyncing ? "Syncing…" : "Run sync")
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    private bool isSyncing;
+    private string? lastResult;
+    private Severity lastSeverity = Severity.Success;
+
+    private async Task RunSync()
+    {
+        if (isSyncing) return;
+        isSyncing = true;
+        try
+        {
+            var sonarrResult = await SonarrSync.SyncAsync();
+            var destResult = await DestinationSync.SyncAsync();
+            var subResult = await SubtitleSync.SyncAsync();
+
+            lastResult =
+                $"Sync complete — {sonarrResult.SeriesCount} series, {sonarrResult.EpisodeCount} episodes, " +
+                $"{destResult.FilesMatched} destination files ({destResult.OrphanedFiles} orphaned), " +
+                $"{subResult.SourceFound}/{subResult.DestinationFound} source/destination subtitles.";
+            lastSeverity = Severity.Success;
+            Snackbar.Add(lastResult, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            lastResult = $"Sync failed: {ex.Message}";
+            lastSeverity = Severity.Error;
+            Snackbar.Add(lastResult, Severity.Error);
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+}
