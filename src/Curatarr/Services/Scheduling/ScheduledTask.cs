@@ -17,7 +17,7 @@ public sealed class ScheduledTask
         Description = description;
         Interval = interval;
         _action = action;
-        NextRun = DateTimeOffset.UtcNow;
+        NextRun = DateTimeOffset.UtcNow + interval;
     }
 
     public string Name { get; }
