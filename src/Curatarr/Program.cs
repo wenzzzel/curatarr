@@ -81,6 +81,7 @@ builder.Services.AddScoped<SubtitleSyncService>();
 builder.Services.AddScoped<MovieSubtitleSyncService>();
 
 builder.Services.AddScoped<SeriesDiffService>();
+builder.Services.AddScoped<MovieDiffService>();
 
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
