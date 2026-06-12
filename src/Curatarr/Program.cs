@@ -4,6 +4,7 @@ using Curatarr.Data;
 using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
+using Curatarr.Services.MovieDestination;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
@@ -61,6 +62,15 @@ builder.Services.Configure<DestinationOptions>(
 
 builder.Services.AddSingleton<DestinationScanner>();
 builder.Services.AddScoped<DestinationSyncService>();
+
+builder.Services.Configure<MovieDestinationOptions>(
+    builder.Configuration.GetSection(MovieDestinationOptions.SectionName));
+
+builder.Services.AddSingleton<MovieDestinationScanner>();
+builder.Services.AddScoped<MovieDestinationSyncService>();
+
+builder.Services.Configure<MovieSourceOptions>(
+    builder.Configuration.GetSection(MovieSourceOptions.SectionName));
 
 builder.Services.Configure<SourceOptions>(
     builder.Configuration.GetSection(SourceOptions.SectionName));
