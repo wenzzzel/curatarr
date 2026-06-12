@@ -5,6 +5,7 @@ using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.MovieDestination;
+using Curatarr.Services.MovieSubtitle;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
@@ -77,6 +78,7 @@ builder.Services.Configure<SeriesSourceOptions>(
 builder.Services.Configure<SubtitleOptions>(
     builder.Configuration.GetSection(SubtitleOptions.SectionName));
 builder.Services.AddScoped<SubtitleSyncService>();
+builder.Services.AddScoped<MovieSubtitleSyncService>();
 
 builder.Services.AddScoped<SeriesDiffService>();
 
