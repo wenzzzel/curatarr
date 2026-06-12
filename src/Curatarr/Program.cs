@@ -4,6 +4,7 @@ using Curatarr.Data;
 using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
+using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
@@ -42,6 +43,16 @@ builder.Services.AddHttpClient<SonarrClient>((sp, client) =>
 });
 
 builder.Services.AddScoped<SonarrSyncService>();
+
+builder.Services.Configure<RadarrOptions>(
+    builder.Configuration.GetSection(RadarrOptions.SectionName));
+
+builder.Services.AddHttpClient<RadarrClient>((sp, client) =>
+{
+    var radarr = sp.GetRequiredService<IOptions<RadarrOptions>>().Value;
+    client.BaseAddress = new Uri(radarr.Url);
+    client.DefaultRequestHeaders.Add("X-Api-Key", radarr.ApiKey);
+});
 
 builder.Services.Configure<DestinationOptions>(
     builder.Configuration.GetSection(DestinationOptions.SectionName));
@@ -84,6 +95,7 @@ app.MapRazorComponents<App>()
 
 app.MapHealthEndpoints();
 app.MapSonarrEndpoints();
+app.MapRadarrEndpoints();
 app.MapSyncEndpoints();
 
 await app.RunAsync();
