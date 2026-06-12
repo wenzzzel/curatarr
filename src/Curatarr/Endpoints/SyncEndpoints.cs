@@ -1,4 +1,5 @@
 using Curatarr.Services.Destination;
+using Curatarr.Services.Radarr;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
 
@@ -10,11 +11,13 @@ public static class SyncEndpoints
     {
         app.MapPost("/sync", async (
             SonarrSyncService sonarrSync,
+            RadarrSyncService radarrSync,
             DestinationSyncService destinationSync,
             SubtitleSyncService subtitleSync,
             CancellationToken ct) =>
         {
             var sonarrResult = await sonarrSync.SyncAsync(ct);
+            var radarrResult = await radarrSync.SyncAsync(ct);
             var destinationResult = await destinationSync.SyncAsync(ct);
             var subtitleResult = await subtitleSync.SyncAsync(ct);
 
@@ -22,6 +25,7 @@ public static class SyncEndpoints
             {
                 series = sonarrResult.SeriesCount,
                 episodes = sonarrResult.EpisodeCount,
+                movies = radarrResult.MovieCount,
                 destinationSeriesScanned = destinationResult.SeriesScanned,
                 destinationFilesMatched = destinationResult.FilesMatched,
                 destinationOrphanedFiles = destinationResult.OrphanedFiles,

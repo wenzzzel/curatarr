@@ -54,6 +54,8 @@ builder.Services.AddHttpClient<RadarrClient>((sp, client) =>
     client.DefaultRequestHeaders.Add("X-Api-Key", radarr.ApiKey);
 });
 
+builder.Services.AddScoped<RadarrSyncService>();
+
 builder.Services.Configure<DestinationOptions>(
     builder.Configuration.GetSection(DestinationOptions.SectionName));
 
