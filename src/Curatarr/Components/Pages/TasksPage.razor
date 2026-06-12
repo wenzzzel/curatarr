@@ -1,0 +1,141 @@
+@page "/tasks"
+@using Curatarr.Services.Scheduling
+@implements IDisposable
+@inject ScheduledTaskRegistry Registry
+@inject IServiceScopeFactory ScopeFactory
+@inject ISnackbar Snackbar
+
+<PageTitle>Tasks</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Tasks</MudText>
+
+<MudDataGrid T="ScheduledTask"
+             Items="@Registry.Tasks"
+             Hover="true"
+             Dense="true"
+             SortMode="SortMode.Multiple"
+             Bordered="false">
+    <Columns>
+        <PropertyColumn Property="@(x => x.Name)" Title="Name">
+            <CellTemplate>
+                <MudTooltip Text="@context.Item.Description" Placement="Placement.Right">
+                    <span>@context.Item.Name</span>
+                </MudTooltip>
+            </CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="@(x => x.Interval)" Title="Interval">
+            <CellTemplate>@FormatInterval(context.Item.Interval)</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="@(x => x.LastRun)" Title="Last execution">
+            <CellTemplate>
+                @if (context.Item.LastRun is { } t)
+                {
+                    <MudTooltip Text="@t.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                        <span>@FormatRelative(t)</span>
+                    </MudTooltip>
+                    @if (!context.Item.LastSucceeded)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-2">Failed</MudChip>
+                    }
+                }
+                else
+                {
+                    <span>—</span>
+                }
+            </CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="@(x => x.LastDuration)" Title="Last duration">
+            <CellTemplate>@FormatDuration(context.Item.LastDuration)</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="@(x => x.NextRun)" Title="Next execution">
+            <CellTemplate>
+                @if (context.Item.IsRunning)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">Running</MudChip>
+                }
+                else
+                {
+                    <MudTooltip Text="@context.Item.NextRun.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")">
+                        <span>@FormatUntil(context.Item.NextRun)</span>
+                    </MudTooltip>
+                }
+            </CellTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="" Sortable="false" Filterable="false">
+            <CellTemplate>
+                <MudTooltip Text="Run now">
+                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Disabled="@context.Item.IsRunning"
+                                   OnClick="@(() => RunNowAsync(context.Item))" />
+                </MudTooltip>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private System.Threading.Timer? refreshTimer;
+
+    protected override void OnInitialized()
+    {
+        refreshTimer = new System.Threading.Timer(
+            _ => InvokeAsync(StateHasChanged),
+            null,
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(1));
+    }
+
+    private async Task RunNowAsync(ScheduledTask task)
+    {
+        using var scope = ScopeFactory.CreateScope();
+        await task.RunAsync(scope.ServiceProvider, CancellationToken.None);
+
+        if (task.LastSucceeded)
+        {
+            Snackbar.Add($"{task.Name}: {task.LastMessage}", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"{task.Name} failed: {task.LastMessage}", Severity.Error);
+        }
+    }
+
+    public void Dispose() => refreshTimer?.Dispose();
+
+    private static string FormatInterval(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1)
+            return ts.Minutes > 0 ? $"{(int)ts.TotalHours}h {ts.Minutes}m" : $"{(int)ts.TotalHours}h";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}m";
+        return $"{(int)ts.TotalSeconds}s";
+    }
+
+    private static string FormatRelative(DateTimeOffset t)
+    {
+        var d = DateTimeOffset.UtcNow - t;
+        if (d.TotalSeconds < 60) return "just now";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes}m ago";
+        if (d.TotalHours < 24) return $"{(int)d.TotalHours}h ago";
+        return $"{(int)d.TotalDays}d ago";
+    }
+
+    private static string FormatUntil(DateTimeOffset t)
+    {
+        var d = t - DateTimeOffset.UtcNow;
+        if (d <= TimeSpan.Zero) return "due now";
+        if (d.TotalMinutes < 1) return $"in {(int)d.TotalSeconds}s";
+        if (d.TotalMinutes < 60) return $"in {(int)d.TotalMinutes}m";
+        return $"in {(int)d.TotalHours}h {d.Minutes}m";
+    }
+
+    private static string FormatDuration(TimeSpan? ts)
+    {
+        if (ts is null) return "—";
+        var d = ts.Value;
+        if (d.TotalMinutes >= 1) return $"{(int)d.TotalMinutes}m {d.Seconds}s";
+        if (d.TotalSeconds >= 1) return $"{d.TotalSeconds:F1}s";
+        return $"{d.TotalMilliseconds:F0}ms";
+    }
+}

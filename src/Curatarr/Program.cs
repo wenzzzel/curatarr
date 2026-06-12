@@ -4,6 +4,7 @@ using Curatarr.Data;
 using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
+using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
 using Microsoft.AspNetCore.DataProtection;
@@ -55,6 +56,10 @@ builder.Services.Configure<SubtitleOptions>(
 builder.Services.AddScoped<SubtitleSyncService>();
 
 builder.Services.AddScoped<SeriesDiffService>();
+
+builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
+builder.Services.AddSingleton<ScheduledTaskRegistry>();
+builder.Services.AddHostedService<ScheduledTaskHostedService>();
 
 var app = builder.Build();
 
