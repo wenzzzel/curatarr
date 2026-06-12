@@ -34,12 +34,18 @@ docker run -d \
   --name curatarr \
   -p 9595:8080 \
   -v /path/to/curatarr/config:/config \
-  -v /path/to/source:/media/source:ro \
-  -v /path/to/destination:/media/destination:ro \
+  -v /path/to/series/source:/media/series-source:ro \
+  -v /path/to/series/destination:/media/series-destination:ro \
+  -v /path/to/movies/source:/media/movie-source:ro \
+  -v /path/to/movies/destination:/media/movie-destination:ro \
   -e Sonarr__Url=http://sonarr:8989 \
-  -e Sonarr__ApiKey=your-api-key \
-  -e Source__Root=/media/source \
-  -e Destination__Root=/media/destination \
+  -e Sonarr__ApiKey=your-sonarr-api-key \
+  -e Radarr__Url=http://radarr:7878 \
+  -e Radarr__ApiKey=your-radarr-api-key \
+  -e SeriesSource__Root=/media/series-source \
+  -e SeriesDestination__Root=/media/series-destination \
+  -e MovieSource__Root=/media/movie-source \
+  -e MovieDestination__Root=/media/movie-destination \
   wenzzzel/curatarr:latest
 ```
 
@@ -60,13 +66,19 @@ services:
       - "9595:8080"
     volumes:
       - /path/to/curatarr/config:/config
-      - /path/to/source:/media/source:ro
-      - /path/to/destination:/media/destination:ro
+      - /path/to/series/source:/media/series-source:ro
+      - /path/to/series/destination:/media/series-destination:ro
+      - /path/to/movies/source:/media/movie-source:ro
+      - /path/to/movies/destination:/media/movie-destination:ro
     environment:
       Sonarr__Url: http://sonarr:8989
-      Sonarr__ApiKey: your-api-key
-      Source__Root: /media/source
-      Destination__Root: /media/destination
+      Sonarr__ApiKey: your-sonarr-api-key
+      Radarr__Url: http://radarr:7878
+      Radarr__ApiKey: your-radarr-api-key
+      SeriesSource__Root: /media/series-source
+      SeriesDestination__Root: /media/series-destination
+      MovieSource__Root: /media/movie-source
+      MovieDestination__Root: /media/movie-destination
     restart: unless-stopped
 ```
 

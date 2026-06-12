@@ -15,6 +15,14 @@ public class CuratarrDbContext(DbContextOptions<CuratarrDbContext> options) : Db
 
     public DbSet<SubtitleFile> SubtitleFiles => Set<SubtitleFile>();
 
+    public DbSet<Movie> Movies => Set<Movie>();
+
+    public DbSet<MovieFile> MovieFiles => Set<MovieFile>();
+
+    public DbSet<OrphanedMovieFile> OrphanedMovieFiles => Set<OrphanedMovieFile>();
+
+    public DbSet<MovieSubtitleFile> MovieSubtitleFiles => Set<MovieSubtitleFile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Series>(b =>
@@ -70,6 +78,50 @@ public class CuratarrDbContext(DbContextOptions<CuratarrDbContext> options) : Db
             b.HasOne(x => x.Episode)
                 .WithMany(e => e.Subtitles)
                 .HasForeignKey(x => x.EpisodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Movie>(b =>
+        {
+            b.HasIndex(x => x.RadarrId).IsUnique();
+            b.Property(x => x.Title).HasMaxLength(500);
+            b.Property(x => x.Path).HasMaxLength(1000);
+            b.Ignore(x => x.SourceFile);
+            b.Ignore(x => x.DestinationFile);
+        });
+
+        modelBuilder.Entity<MovieFile>(b =>
+        {
+            b.HasIndex(x => new { x.MovieId, x.Side }).IsUnique();
+            b.Property(x => x.RelativePath).HasMaxLength(1000);
+            b.Property(x => x.Quality).HasMaxLength(100);
+
+            b.HasOne(x => x.Movie)
+                .WithMany(m => m.Files)
+                .HasForeignKey(x => x.MovieId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OrphanedMovieFile>(b =>
+        {
+            b.HasIndex(x => new { x.MovieId, x.RelativePath }).IsUnique();
+            b.Property(x => x.RelativePath).HasMaxLength(1000);
+
+            b.HasOne(x => x.Movie)
+                .WithMany(m => m.OrphanedDestinationFiles)
+                .HasForeignKey(x => x.MovieId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MovieSubtitleFile>(b =>
+        {
+            b.HasIndex(x => new { x.MovieId, x.Side, x.Suffix }).IsUnique();
+            b.Property(x => x.Suffix).HasMaxLength(50);
+            b.Property(x => x.RelativePath).HasMaxLength(1000);
+
+            b.HasOne(x => x.Movie)
+                .WithMany(m => m.Subtitles)
+                .HasForeignKey(x => x.MovieId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -10,11 +10,11 @@ public record DestinationSyncResult(int SeriesScanned, int FilesMatched, int Orp
 
 public class DestinationSyncService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
-    IOptions<DestinationOptions> options)
+    IOptions<SeriesDestinationOptions> options)
 {
     private const string DestinationExtension = ".mp4";
 
-    private readonly DestinationOptions _options = options.Value;
+    private readonly SeriesDestinationOptions _options = options.Value;
 
     public async Task<DestinationSyncResult> SyncAsync(CancellationToken ct = default)
     {
@@ -35,7 +35,7 @@ public class DestinationSyncService(
         var destinationFolders = Directory.EnumerateDirectories(_options.Root)
             .Select(p => (Full: p, Leaf: Path.GetFileName(p)))
             .Where(x => !string.IsNullOrEmpty(x.Leaf))
-            .ToDictionary(x => x.Leaf, x => x.Full, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Leaf, x => x.Full, StringComparer.Ordinal);
 
         var seriesScanned = 0;
         var filesMatched = 0;
@@ -76,10 +76,10 @@ public class DestinationSyncService(
             .ToLookup(
                 x => Path.GetFileNameWithoutExtension(x.Source!.RelativePath),
                 x => x.Episode,
-                StringComparer.OrdinalIgnoreCase);
+                StringComparer.Ordinal);
 
         var matchedEpisodeIds = new HashSet<int>();
-        var observedOrphans = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var observedOrphans = new HashSet<string>(StringComparer.Ordinal);
         var matchCount = 0;
         var orphanCount = 0;
 
@@ -139,7 +139,7 @@ public class DestinationSyncService(
     private static void UpsertOrphan(Series series, string relativePath, long sizeBytes, DateTimeOffset now)
     {
         var existing = series.OrphanedDestinationFiles
-            .FirstOrDefault(o => string.Equals(o.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(o => string.Equals(o.RelativePath, relativePath, StringComparison.Ordinal));
         if (existing is null)
         {
             series.OrphanedDestinationFiles.Add(new OrphanedDestinationFile

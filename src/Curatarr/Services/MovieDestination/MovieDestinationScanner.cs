@@ -1,13 +1,13 @@
 using Curatarr.Configuration;
 using Microsoft.Extensions.Options;
 
-namespace Curatarr.Services.Destination;
+namespace Curatarr.Services.MovieDestination;
 
-public class DestinationScanner(IOptions<SeriesDestinationOptions> options)
+public class MovieDestinationScanner(IOptions<MovieDestinationOptions> options)
 {
-    private readonly SeriesDestinationOptions _options = options.Value;
+    private readonly MovieDestinationOptions _options = options.Value;
 
-    public IReadOnlyList<string> GetSeriesFolders()
+    public IReadOnlyList<string> GetMovieFolders()
     {
         if (string.IsNullOrWhiteSpace(_options.Root) || !Directory.Exists(_options.Root))
         {

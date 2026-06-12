@@ -1,8 +1,8 @@
 namespace Curatarr.Configuration;
 
-public class DestinationOptions
+public class SeriesSourceOptions
 {
-    public const string SectionName = "Destination";
+    public const string SectionName = "SeriesSource";
 
     public string Root { get; set; } = string.Empty;
 }

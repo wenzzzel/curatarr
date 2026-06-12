@@ -4,6 +4,9 @@ using Curatarr.Data;
 using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
+using Curatarr.Services.MovieDestination;
+using Curatarr.Services.MovieSubtitle;
+using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
@@ -43,19 +46,42 @@ builder.Services.AddHttpClient<SonarrClient>((sp, client) =>
 
 builder.Services.AddScoped<SonarrSyncService>();
 
-builder.Services.Configure<DestinationOptions>(
-    builder.Configuration.GetSection(DestinationOptions.SectionName));
+builder.Services.Configure<RadarrOptions>(
+    builder.Configuration.GetSection(RadarrOptions.SectionName));
+
+builder.Services.AddHttpClient<RadarrClient>((sp, client) =>
+{
+    var radarr = sp.GetRequiredService<IOptions<RadarrOptions>>().Value;
+    client.BaseAddress = new Uri(radarr.Url);
+    client.DefaultRequestHeaders.Add("X-Api-Key", radarr.ApiKey);
+});
+
+builder.Services.AddScoped<RadarrSyncService>();
+
+builder.Services.Configure<SeriesDestinationOptions>(
+    builder.Configuration.GetSection(SeriesDestinationOptions.SectionName));
 
 builder.Services.AddSingleton<DestinationScanner>();
 builder.Services.AddScoped<DestinationSyncService>();
 
-builder.Services.Configure<SourceOptions>(
-    builder.Configuration.GetSection(SourceOptions.SectionName));
+builder.Services.Configure<MovieDestinationOptions>(
+    builder.Configuration.GetSection(MovieDestinationOptions.SectionName));
+
+builder.Services.AddSingleton<MovieDestinationScanner>();
+builder.Services.AddScoped<MovieDestinationSyncService>();
+
+builder.Services.Configure<MovieSourceOptions>(
+    builder.Configuration.GetSection(MovieSourceOptions.SectionName));
+
+builder.Services.Configure<SeriesSourceOptions>(
+    builder.Configuration.GetSection(SeriesSourceOptions.SectionName));
 builder.Services.Configure<SubtitleOptions>(
     builder.Configuration.GetSection(SubtitleOptions.SectionName));
 builder.Services.AddScoped<SubtitleSyncService>();
+builder.Services.AddScoped<MovieSubtitleSyncService>();
 
 builder.Services.AddScoped<SeriesDiffService>();
+builder.Services.AddScoped<MovieDiffService>();
 
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
@@ -84,6 +110,7 @@ app.MapRazorComponents<App>()
 
 app.MapHealthEndpoints();
 app.MapSonarrEndpoints();
+app.MapRadarrEndpoints();
 app.MapSyncEndpoints();
 
 await app.RunAsync();
