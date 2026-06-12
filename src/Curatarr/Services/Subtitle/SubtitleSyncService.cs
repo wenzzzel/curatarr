@@ -10,12 +10,12 @@ public record SubtitleSyncResult(int SourceFound, int DestinationFound);
 
 public class SubtitleSyncService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
-    IOptions<SourceOptions> sourceOptions,
-    IOptions<DestinationOptions> destinationOptions,
+    IOptions<SeriesSourceOptions> sourceOptions,
+    IOptions<SeriesDestinationOptions> destinationOptions,
     IOptions<SubtitleOptions> subtitleOptions)
 {
-    private readonly SourceOptions _sourceOptions = sourceOptions.Value;
-    private readonly DestinationOptions _destinationOptions = destinationOptions.Value;
+    private readonly SeriesSourceOptions _sourceOptions = sourceOptions.Value;
+    private readonly SeriesDestinationOptions _destinationOptions = destinationOptions.Value;
     private readonly SubtitleOptions _subtitleOptions = subtitleOptions.Value;
 
     public async Task<SubtitleSyncResult> SyncAsync(CancellationToken ct = default)

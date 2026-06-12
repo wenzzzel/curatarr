@@ -57,8 +57,8 @@ builder.Services.AddHttpClient<RadarrClient>((sp, client) =>
 
 builder.Services.AddScoped<RadarrSyncService>();
 
-builder.Services.Configure<DestinationOptions>(
-    builder.Configuration.GetSection(DestinationOptions.SectionName));
+builder.Services.Configure<SeriesDestinationOptions>(
+    builder.Configuration.GetSection(SeriesDestinationOptions.SectionName));
 
 builder.Services.AddSingleton<DestinationScanner>();
 builder.Services.AddScoped<DestinationSyncService>();
@@ -72,8 +72,8 @@ builder.Services.AddScoped<MovieDestinationSyncService>();
 builder.Services.Configure<MovieSourceOptions>(
     builder.Configuration.GetSection(MovieSourceOptions.SectionName));
 
-builder.Services.Configure<SourceOptions>(
-    builder.Configuration.GetSection(SourceOptions.SectionName));
+builder.Services.Configure<SeriesSourceOptions>(
+    builder.Configuration.GetSection(SeriesSourceOptions.SectionName));
 builder.Services.Configure<SubtitleOptions>(
     builder.Configuration.GetSection(SubtitleOptions.SectionName));
 builder.Services.AddScoped<SubtitleSyncService>();

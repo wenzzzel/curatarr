@@ -10,11 +10,11 @@ public record DestinationSyncResult(int SeriesScanned, int FilesMatched, int Orp
 
 public class DestinationSyncService(
     IDbContextFactory<CuratarrDbContext> dbFactory,
-    IOptions<DestinationOptions> options)
+    IOptions<SeriesDestinationOptions> options)
 {
     private const string DestinationExtension = ".mp4";
 
-    private readonly DestinationOptions _options = options.Value;
+    private readonly SeriesDestinationOptions _options = options.Value;
 
     public async Task<DestinationSyncResult> SyncAsync(CancellationToken ct = default)
     {

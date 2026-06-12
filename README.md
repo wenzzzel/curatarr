@@ -38,8 +38,8 @@ docker run -d \
   -v /path/to/destination:/media/destination:ro \
   -e Sonarr__Url=http://sonarr:8989 \
   -e Sonarr__ApiKey=your-api-key \
-  -e Source__Root=/media/source \
-  -e Destination__Root=/media/destination \
+  -e SeriesSource__Root=/media/source \
+  -e SeriesDestination__Root=/media/destination \
   wenzzzel/curatarr:latest
 ```
 
@@ -65,8 +65,8 @@ services:
     environment:
       Sonarr__Url: http://sonarr:8989
       Sonarr__ApiKey: your-api-key
-      Source__Root: /media/source
-      Destination__Root: /media/destination
+      SeriesSource__Root: /media/source
+      SeriesDestination__Root: /media/destination
     restart: unless-stopped
 ```
 

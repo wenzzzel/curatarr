@@ -3,9 +3,9 @@ using Microsoft.Extensions.Options;
 
 namespace Curatarr.Services.Destination;
 
-public class DestinationScanner(IOptions<DestinationOptions> options)
+public class DestinationScanner(IOptions<SeriesDestinationOptions> options)
 {
-    private readonly DestinationOptions _options = options.Value;
+    private readonly SeriesDestinationOptions _options = options.Value;
 
     public IReadOnlyList<string> GetSeriesFolders()
     {
