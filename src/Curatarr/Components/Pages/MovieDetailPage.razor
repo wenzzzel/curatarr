@@ -1,0 +1,163 @@
+@page "/movies/{RadarrId:int}"
+@using Curatarr.Services.Diff
+@using Curatarr.Services.Subtitle
+@inject MovieDiffService Diff
+
+<PageTitle>@(detail?.Title ?? "Movie")</PageTitle>
+
+<MudLink Href="/movies" Class="mb-4 d-inline-block">← All movies</MudLink>
+
+@if (!loaded)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (detail is null)
+{
+    <MudText>Movie not found.</MudText>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">@detail.Title</MudText>
+
+    <MudCard Class="mb-8" Style="max-width: 900px;">
+        <MudCardContent>
+            <div class="d-flex align-center mb-3 gap-2">
+                <MudText Typo="Typo.subtitle2" Style="min-width: 160px;">Status</MudText>
+                @{
+                    var badge = StatusBadgeFor(detail);
+                }
+                <MudChip T="string"
+                         Color="@badge.Color"
+                         Icon="@badge.Icon"
+                         Size="Size.Small"
+                         Variant="Variant.Filled">@badge.Label</MudChip>
+            </div>
+            <div class="d-flex align-center mb-3 gap-2">
+                <MudText Typo="Typo.subtitle2" Style="min-width: 160px;">File path</MudText>
+                <MudText>@(detail.DestinationFile ?? "—")</MudText>
+            </div>
+            <div class="d-flex mb-3 gap-2">
+                <MudText Typo="Typo.subtitle2" Style="min-width: 160px;">Subtitles</MudText>
+                @if (detail.DestinationSubtitles.Count == 0)
+                {
+                    <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var sub in detail.DestinationSubtitles)
+                        {
+                            <MudChip T="string" Color="@SubtitleColor(sub.Origin)" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="d-flex mb-3 gap-2">
+                <MudText Typo="Typo.subtitle2" Style="min-width: 160px;">Missing subtitles</MudText>
+                @if (detail.MissingSubtitles.Count == 0)
+                {
+                    <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var sub in detail.MissingSubtitles)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="d-flex gap-2">
+                <MudText Typo="Typo.subtitle2" Style="min-width: 160px;">Excessive subtitles</MudText>
+                @if (detail.ExcessiveSubtitles.Count == 0)
+                {
+                    <MudText Inline="true" Color="Color.Tertiary">—</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var sub in detail.ExcessiveSubtitles)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">@sub.Suffix</MudChip>
+                        }
+                    </div>
+                }
+            </div>
+        </MudCardContent>
+    </MudCard>
+
+    @if (detail.OrphanedFiles.Count > 0)
+    {
+        <MudText Typo="Typo.h5" Class="mb-2">Orphaned destination files (@detail.OrphanedFiles.Count)</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Files in this movie's destination folder that don't match the source video. Usually leftovers from a file upgrade.
+        </MudText>
+
+        <MudDataGrid T="OrphanedFileRow"
+                     Items="@detail.OrphanedFiles"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     Hover="true"
+                     Dense="true"
+                     RowsPerPage="25">
+            <Columns>
+                <PropertyColumn Property="x => x.RelativePath" Title="Path" />
+                <TemplateColumn Title="Size" Sortable="true" SortBy="@(o => o.SizeBytes)">
+                    <CellTemplate>@FormatSize(context.Item.SizeBytes)</CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="OrphanedFileRow" />
+            </PagerContent>
+        </MudDataGrid>
+    }
+}
+
+@code {
+    [Parameter] public int RadarrId { get; set; }
+
+    private MovieDetail? detail;
+    private bool loaded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loaded = false;
+        detail = await Diff.GetMovieDetailAsync(RadarrId);
+        loaded = true;
+    }
+
+    private record StatusBadge(string Label, Color Color, string Icon, int Severity);
+
+    private static StatusBadge StatusBadgeFor(MovieDetail movie) => (movie.HasSource, movie.HasDestination) switch
+    {
+        (true, true) when movie.MissingSubtitles.Count == 0 && movie.ExcessiveSubtitles.Count == 0
+            => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
+        (true, true)
+            => new(string.Join(", ", BuildIssues(movie)), Color.Warning, Icons.Material.Filled.Subtitles, 1),
+        (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 3),
+        (false, true) => new("Orphaned in destination", Color.Info, Icons.Material.Filled.FileCopy, 2),
+        _ => new("No file", Color.Default, Icons.Material.Filled.HelpOutline, 4),
+    };
+
+    private static IEnumerable<string> BuildIssues(MovieDetail movie)
+    {
+        if (movie.MissingSubtitles.Count > 0) yield return $"{movie.MissingSubtitles.Count} missing subs";
+        if (movie.ExcessiveSubtitles.Count > 0) yield return $"{movie.ExcessiveSubtitles.Count} excessive subs";
+    }
+
+    private static Color SubtitleColor(SubtitleOrigin origin) => origin switch
+    {
+        SubtitleOrigin.Original => Color.Info,
+        SubtitleOrigin.Downloaded => Color.Default,
+        _ => Color.Default,
+    };
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1_000_000_000 => $"{bytes / 1_000_000_000d:0.0} GB",
+        >= 1_000_000 => $"{bytes / 1_000_000d:0.0} MB",
+        >= 1_000 => $"{bytes / 1_000d:0.0} KB",
+        _ => $"{bytes} B",
+    };
+}
