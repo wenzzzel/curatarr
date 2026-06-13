@@ -27,17 +27,18 @@ Configuration lives in `src/Curatarr/appsettings.json` and can be overridden wit
 
 ## Running in Docker
 
-Pull from Docker Hub (or build locally with `docker build -t curatarr .`), then run with a persistent `/config` volume plus your source and destination trees mounted read-only:
+Pull from Docker Hub (or build locally with `docker build -t curatarr .`), then run with a persistent `/config` volume plus your source trees mounted read-only and your destination trees mounted writable (the scheduled cleanup task deletes excessive subtitles from the destination):
 
 ```sh
 docker run -d \
   --name curatarr \
+  --user 1000:1000 \
   -p 9595:8080 \
   -v /path/to/curatarr/config:/config \
   -v /path/to/series/source:/media/series-source:ro \
-  -v /path/to/series/destination:/media/series-destination:ro \
+  -v /path/to/series/destination:/media/series-destination \
   -v /path/to/movies/source:/media/movie-source:ro \
-  -v /path/to/movies/destination:/media/movie-destination:ro \
+  -v /path/to/movies/destination:/media/movie-destination \
   -e Sonarr__Url=http://sonarr:8989 \
   -e Sonarr__ApiKey=your-sonarr-api-key \
   -e Radarr__Url=http://radarr:7878 \
@@ -51,7 +52,7 @@ docker run -d \
 
 All settings can be overridden with environment variables using `__` as the section separator (e.g. `Sonarr__ApiKey`, `ConnectionStrings__Curatarr`). The SQLite database lives at `/config/curatarr.db` by default, so anything mounted at `/config` persists across container restarts.
 
-The mounted `/config` directory must be writable by UID `1654` (the `app` user in Microsoft's .NET runtime image).
+The container runs as `1000:1000` in the examples above so that it can write to the destination trees (the cleanup task deletes excessive subtitles). Adjust the UID and GID to match whichever user owns your destination files — typically the same one the rest of your *arr stack runs as. The `/config` directory must also be writable by that same UID, so either create it with the right ownership ahead of time or run the container as a user that already has access.
 
 ### Docker Compose
 
@@ -62,14 +63,15 @@ services:
   curatarr:
     image: wenzzzel/curatarr:latest
     container_name: curatarr
+    user: "1000:1000"
     ports:
       - "9595:8080"
     volumes:
       - /path/to/curatarr/config:/config
       - /path/to/series/source:/media/series-source:ro
-      - /path/to/series/destination:/media/series-destination:ro
+      - /path/to/series/destination:/media/series-destination
       - /path/to/movies/source:/media/movie-source:ro
-      - /path/to/movies/destination:/media/movie-destination:ro
+      - /path/to/movies/destination:/media/movie-destination
     environment:
       Sonarr__Url: http://sonarr:8989
       Sonarr__ApiKey: your-sonarr-api-key
