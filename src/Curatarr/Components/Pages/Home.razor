@@ -1,7 +1,80 @@
-﻿@page "/"
+@page "/"
+@using Curatarr.Services.Diff
+@inject SeriesDiffService SeriesDiff
+@inject MovieDiffService MovieDiff
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Curatarr</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Overview</MudText>
 
-Welcome to your new app.
+@if (seriesStats is null || movieStats is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            @RenderStatsCard("Series", seriesStats)
+        </MudItem>
+        <MudItem xs="12" md="6">
+            @RenderStatsCard("Movies", movieStats)
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private Stats? seriesStats;
+    private Stats? movieStats;
+
+    private record Stats(int Ok, int Orphaned, int OrphanedFiles, int Missing, int MissingSubs, int ExcessiveSubs);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var seriesTask = SeriesDiff.GetSeriesDiffAsync();
+        var movieTask = MovieDiff.GetMoviesDiffAsync();
+
+        var seriesRows = await seriesTask;
+        var movieRows = await movieTask;
+
+        seriesStats = new Stats(
+            Ok: seriesRows.Count(r => r.IsOk),
+            Orphaned: seriesRows.Count(r => r.IsOrphanedFolder),
+            OrphanedFiles: seriesRows.Sum(r => r.OrphanedFiles),
+            Missing: seriesRows.Count(r => r.IsMissingInDestination),
+            MissingSubs: seriesRows.Sum(r => r.MissingSubtitles),
+            ExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles));
+
+        movieStats = new Stats(
+            Ok: movieRows.Count(r => r.IsOk),
+            Orphaned: movieRows.Count(r => r.IsOrphanedFolder),
+            OrphanedFiles: movieRows.Sum(r => r.OrphanedFiles),
+            Missing: movieRows.Count(r => r.IsMissingInDestination),
+            MissingSubs: movieRows.Sum(r => r.MissingSubtitles),
+            ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles));
+    }
+
+    private static (string Label, int Value, Color Color)[] Tiles(Stats s) =>
+    [
+        ("OK", s.Ok, Color.Success),
+        ("Orphaned", s.Orphaned, Color.Info),
+        ("Orphaned files", s.OrphanedFiles, Color.Warning),
+        ("Missing", s.Missing, Color.Error),
+        ("Missing subs", s.MissingSubs, Color.Warning),
+        ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+    ];
+
+    private RenderFragment RenderStatsCard(string title, Stats stats) =>
+        @<MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">@title</MudText>
+            <div class="d-flex flex-wrap" style="gap: 8px;">
+                @foreach (var tile in Tiles(stats))
+                {
+                    <MudPaper Class="pa-3 d-flex flex-column align-center" Outlined="true" Style="flex: 1 1 110px;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@tile.Label</MudText>
+                        <MudText Typo="Typo.h4" Color="@(tile.Value == 0 && tile.Color != Color.Success ? Color.Default : tile.Color)">@tile.Value</MudText>
+                    </MudPaper>
+                }
+            </div>
+        </MudPaper>;
+}

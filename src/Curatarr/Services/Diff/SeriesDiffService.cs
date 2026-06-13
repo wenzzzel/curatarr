@@ -24,6 +24,13 @@ public record SeriesDiffRow(
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
     public int MissingEpisodes => Math.Max(0, SourceEpisodes - DestinationEpisodes);
+    public bool IsOrphanedFolder => InDestination && !InSource;
+    public bool IsMissingInDestination => InSource && !InDestination;
+    public bool IsOk => InSource && InDestination
+        && MissingEpisodes == 0
+        && OrphanedFiles == 0
+        && MissingSubtitles == 0
+        && ExcessiveSubtitles == 0;
 }
 
 public record SeriesDetail(
