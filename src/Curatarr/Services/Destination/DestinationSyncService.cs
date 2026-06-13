@@ -50,7 +50,7 @@ public class DestinationSyncService(
                 continue;
             }
 
-            var leafFolder = string.IsNullOrEmpty(series.Path) ? null : Path.GetFileName(series.Path);
+            var leafFolder = PathHelpers.GetLeafFolder(series.Path);
             if (leafFolder is null || !destinationFolders.TryGetValue(leafFolder, out var destFolder))
             {
                 ClearDestinationFiles(series);

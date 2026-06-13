@@ -34,7 +34,7 @@ public class MovieSubtitleCleanupService(
 
         foreach (var movie in allMovies)
         {
-            var leaf = string.IsNullOrEmpty(movie.Path) ? null : Path.GetFileName(movie.Path);
+            var leaf = PathHelpers.GetLeafFolder(movie.Path);
             if (leaf is null) continue;
 
             var movieFolder = Path.Combine(_destinationOptions.Root, leaf);

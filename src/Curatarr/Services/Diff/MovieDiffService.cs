@@ -122,7 +122,7 @@ public class MovieDiffService(
 
         foreach (var movie in moviesWithCounts)
         {
-            var sourceFolder = string.IsNullOrEmpty(movie.Path) ? null : Path.GetFileName(movie.Path);
+            var sourceFolder = PathHelpers.GetLeafFolder(movie.Path);
             string? destinationMatch = null;
 
             if (sourceFolder is not null && destinationFolders.TryGetValue(sourceFolder, out var dest))

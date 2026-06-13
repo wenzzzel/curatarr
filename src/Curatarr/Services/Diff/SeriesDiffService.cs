@@ -134,7 +134,7 @@ public class SeriesDiffService(
 
         foreach (var series in seriesWithCounts)
         {
-            var sourceFolder = string.IsNullOrEmpty(series.Path) ? null : Path.GetFileName(series.Path);
+            var sourceFolder = PathHelpers.GetLeafFolder(series.Path);
             string? destinationMatch = null;
 
             if (sourceFolder is not null && destinationFolders.TryGetValue(sourceFolder, out var dest))

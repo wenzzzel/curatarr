@@ -32,7 +32,7 @@ public class OrphanedFileCleanupService(
 
         foreach (var series in allSeries)
         {
-            var leaf = string.IsNullOrEmpty(series.Path) ? null : Path.GetFileName(series.Path);
+            var leaf = PathHelpers.GetLeafFolder(series.Path);
             if (leaf is null) continue;
 
             var seriesFolder = Path.Combine(_destinationOptions.Root, leaf);

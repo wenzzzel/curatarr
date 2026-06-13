@@ -38,7 +38,7 @@ public class MovieSubtitleSyncService(
 
         foreach (var movie in allMovies)
         {
-            var leaf = string.IsNullOrEmpty(movie.Path) ? null : Path.GetFileName(movie.Path);
+            var leaf = PathHelpers.GetLeafFolder(movie.Path);
             if (leaf is null)
             {
                 ClearSubtitlesForMovie(movie);

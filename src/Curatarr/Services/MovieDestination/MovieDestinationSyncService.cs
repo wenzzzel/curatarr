@@ -49,7 +49,7 @@ public class MovieDestinationSyncService(
                 continue;
             }
 
-            var leafFolder = string.IsNullOrEmpty(movie.Path) ? null : Path.GetFileName(movie.Path);
+            var leafFolder = PathHelpers.GetLeafFolder(movie.Path);
             if (leafFolder is null || !destinationFolders.TryGetValue(leafFolder, out var destFolder))
             {
                 ClearDestinationFiles(movie);
