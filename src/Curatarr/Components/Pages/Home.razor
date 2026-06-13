@@ -15,19 +15,20 @@ else
 {
     <MudGrid>
         <MudItem xs="12" md="6">
-            @RenderStatsCard("Series", seriesStats)
+            @RenderStatsCard("Series", SeriesTiles(seriesStats))
         </MudItem>
         <MudItem xs="12" md="6">
-            @RenderStatsCard("Movies", movieStats)
+            @RenderStatsCard("Movies", MovieTiles(movieStats))
         </MudItem>
     </MudGrid>
 }
 
 @code {
-    private Stats? seriesStats;
-    private Stats? movieStats;
+    private SeriesStats? seriesStats;
+    private MovieStats? movieStats;
 
-    private record Stats(int Ok, int Orphaned, int OrphanedFiles, int Missing, int MissingSubs, int ExcessiveSubs);
+    private record SeriesStats(int Ok, int Orphaned, int OrphanedFiles, int MissingSeries, int MissingEpisodes, int MissingSubs, int ExcessiveSubs);
+    private record MovieStats(int Ok, int Orphaned, int OrphanedFiles, int MissingMovies, int MissingSubs, int ExcessiveSubs);
 
     protected override async Task OnInitializedAsync()
     {
@@ -37,38 +38,50 @@ else
         var seriesRows = await seriesTask;
         var movieRows = await movieTask;
 
-        seriesStats = new Stats(
+        seriesStats = new SeriesStats(
             Ok: seriesRows.Count(r => r.IsOk),
             Orphaned: seriesRows.Count(r => r.IsOrphanedFolder),
             OrphanedFiles: seriesRows.Sum(r => r.OrphanedFiles),
-            Missing: seriesRows.Count(r => r.IsMissingInDestination),
+            MissingSeries: seriesRows.Count(r => r.IsMissingInDestination),
+            MissingEpisodes: seriesRows.Sum(r => r.MissingEpisodes),
             MissingSubs: seriesRows.Sum(r => r.MissingSubtitles),
             ExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles));
 
-        movieStats = new Stats(
+        movieStats = new MovieStats(
             Ok: movieRows.Count(r => r.IsOk),
             Orphaned: movieRows.Count(r => r.IsOrphanedFolder),
             OrphanedFiles: movieRows.Sum(r => r.OrphanedFiles),
-            Missing: movieRows.Count(r => r.IsMissingInDestination),
+            MissingMovies: movieRows.Count(r => r.IsMissingInDestination),
             MissingSubs: movieRows.Sum(r => r.MissingSubtitles),
             ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles));
     }
 
-    private static (string Label, int Value, Color Color)[] Tiles(Stats s) =>
+    private static (string Label, int Value, Color Color)[] SeriesTiles(SeriesStats s) =>
     [
         ("OK", s.Ok, Color.Success),
         ("Orphaned", s.Orphaned, Color.Info),
         ("Orphaned files", s.OrphanedFiles, Color.Warning),
-        ("Missing", s.Missing, Color.Error),
+        ("Missing series", s.MissingSeries, Color.Error),
+        ("Missing episodes", s.MissingEpisodes, Color.Error),
         ("Missing subs", s.MissingSubs, Color.Warning),
         ("Excessive subs", s.ExcessiveSubs, Color.Warning),
     ];
 
-    private RenderFragment RenderStatsCard(string title, Stats stats) =>
+    private static (string Label, int Value, Color Color)[] MovieTiles(MovieStats s) =>
+    [
+        ("OK", s.Ok, Color.Success),
+        ("Orphaned", s.Orphaned, Color.Info),
+        ("Orphaned files", s.OrphanedFiles, Color.Warning),
+        ("Missing movies", s.MissingMovies, Color.Error),
+        ("Missing subs", s.MissingSubs, Color.Warning),
+        ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+    ];
+
+    private RenderFragment RenderStatsCard(string title, (string Label, int Value, Color Color)[] tiles) =>
         @<MudPaper Class="pa-4" Outlined="true">
             <MudText Typo="Typo.h6" Class="mb-3">@title</MudText>
             <div class="d-flex flex-wrap" style="gap: 8px;">
-                @foreach (var tile in Tiles(stats))
+                @foreach (var tile in tiles)
                 {
                     <MudPaper Class="pa-3 d-flex flex-column align-center" Outlined="true" Style="flex: 1 1 110px;">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">@tile.Label</MudText>
