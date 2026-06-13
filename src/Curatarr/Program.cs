@@ -5,8 +5,10 @@ using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.MovieDestination;
+using Curatarr.Services.MovieOrphanedFileCleanup;
 using Curatarr.Services.MovieSubtitle;
 using Curatarr.Services.MovieSubtitleCleanup;
+using Curatarr.Services.OrphanedFileCleanup;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
@@ -88,8 +90,12 @@ builder.Services.AddScoped<MovieDiffService>();
 builder.Services.AddScoped<SubtitleCleanupService>();
 builder.Services.AddScoped<MovieSubtitleCleanupService>();
 
+builder.Services.AddScoped<OrphanedFileCleanupService>();
+builder.Services.AddScoped<MovieOrphanedFileCleanupService>();
+
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
 builder.Services.AddSingleton(ExcessiveSubtitleCleanupScheduledTask.Create(TimeSpan.FromHours(12)));
+builder.Services.AddSingleton(OrphanedFileCleanupScheduledTask.Create(TimeSpan.FromHours(24)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
 builder.Services.AddHostedService<ScheduledTaskHostedService>();
 
