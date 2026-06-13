@@ -24,6 +24,13 @@ public record MovieDiffRow(
     public bool InSource => SourceFolder is not null;
     public bool InDestination => DestinationFolder is not null;
     public bool IsMissingDestination => HasSourceFile && !HasDestinationFile;
+    public bool IsOrphanedFolder => InDestination && !InSource;
+    public bool IsMissingInDestination => HasSourceFile && !HasDestinationFile;
+    public bool IsOk => InSource && InDestination
+        && !IsMissingDestination
+        && OrphanedFiles == 0
+        && MissingSubtitles == 0
+        && ExcessiveSubtitles == 0;
 }
 
 public record MovieDetail(
