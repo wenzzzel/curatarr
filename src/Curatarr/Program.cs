@@ -6,10 +6,12 @@ using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.MovieDestination;
 using Curatarr.Services.MovieSubtitle;
+using Curatarr.Services.MovieSubtitleCleanup;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
+using Curatarr.Services.SubtitleCleanup;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -83,7 +85,11 @@ builder.Services.AddScoped<MovieSubtitleSyncService>();
 builder.Services.AddScoped<SeriesDiffService>();
 builder.Services.AddScoped<MovieDiffService>();
 
+builder.Services.AddScoped<SubtitleCleanupService>();
+builder.Services.AddScoped<MovieSubtitleCleanupService>();
+
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
+builder.Services.AddSingleton(ExcessiveSubtitleCleanupScheduledTask.Create(TimeSpan.FromHours(12)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
 builder.Services.AddHostedService<ScheduledTaskHostedService>();
 
