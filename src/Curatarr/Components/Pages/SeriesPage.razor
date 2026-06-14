@@ -42,8 +42,9 @@ else
                     }
                 </CellTemplate>
             </TemplateColumn>
-            <PropertyColumn Property="x => x.SourceFolder" Title="Source folder" />
-            <PropertyColumn Property="x => x.DestinationFolder" Title="Destination folder" />
+            <TemplateColumn Title="Folder" Sortable="true" SortBy="@(r => r.SourceFolder ?? r.DestinationFolder ?? string.Empty)">
+                <CellTemplate>@(context.Item.SourceFolder ?? context.Item.DestinationFolder ?? "—")</CellTemplate>
+            </TemplateColumn>
             <TemplateColumn Title="Episodes" Sortable="true" SortBy="@(r => r.SourceEpisodes)">
                 <CellTemplate>
                     <MudText Inline="true"
