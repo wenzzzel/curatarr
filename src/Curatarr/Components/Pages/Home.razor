@@ -15,10 +15,10 @@ else
 {
     <MudGrid>
         <MudItem xs="12" md="6">
-            @RenderStatsCard("Series", SeriesTiles(seriesStats))
+            @RenderStatsCard("Series", SeriesSections(seriesStats))
         </MudItem>
         <MudItem xs="12" md="6">
-            @RenderStatsCard("Movies", MovieTiles(movieStats))
+            @RenderStatsCard("Movies", MovieSections(movieStats))
         </MudItem>
     </MudGrid>
 }
@@ -27,8 +27,14 @@ else
     private SeriesStats? seriesStats;
     private MovieStats? movieStats;
 
-    private record SeriesStats(int Ok, int Orphaned, int OrphanedFiles, int MissingSeries, int MissingEpisodes, int MissingSubs, int ExcessiveSubs);
+    private record SeriesStats(
+        int SeriesOk, int SeriesOrphaned, int SeriesMissing,
+        int EpisodesOk, int EpisodesOrphaned, int EpisodesMissing,
+        int EpisodesMissingSubs, int EpisodesExcessiveSubs);
+
     private record MovieStats(int Ok, int Orphaned, int OrphanedFiles, int MissingMovies, int MissingSubs, int ExcessiveSubs);
+
+    private record StatsSection(string? Subtitle, (string Label, int Value, Color Color)[] Tiles);
 
     protected override async Task OnInitializedAsync()
     {
@@ -39,13 +45,14 @@ else
         var movieRows = await movieTask;
 
         seriesStats = new SeriesStats(
-            Ok: seriesRows.Count(r => r.IsOk),
-            Orphaned: seriesRows.Count(r => r.IsOrphanedFolder),
-            OrphanedFiles: seriesRows.Sum(r => r.OrphanedFiles),
-            MissingSeries: seriesRows.Count(r => r.IsMissingInDestination),
-            MissingEpisodes: seriesRows.Sum(r => r.MissingEpisodes),
-            MissingSubs: seriesRows.Sum(r => r.MissingSubtitles),
-            ExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles));
+            SeriesOk: seriesRows.Count(r => r.IsOk),
+            SeriesOrphaned: seriesRows.Count(r => r.IsOrphanedFolder),
+            SeriesMissing: seriesRows.Count(r => r.IsMissingInDestination),
+            EpisodesOk: seriesRows.Sum(r => r.OkEpisodes),
+            EpisodesOrphaned: seriesRows.Sum(r => r.OrphanedFiles),
+            EpisodesMissing: seriesRows.Sum(r => r.MissingEpisodes),
+            EpisodesMissingSubs: seriesRows.Sum(r => r.MissingSubtitles),
+            EpisodesExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles));
 
         movieStats = new MovieStats(
             Ok: movieRows.Count(r => r.IsOk),
@@ -56,38 +63,55 @@ else
             ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles));
     }
 
-    private static (string Label, int Value, Color Color)[] SeriesTiles(SeriesStats s) =>
+    private static StatsSection[] SeriesSections(SeriesStats s) =>
     [
-        ("OK", s.Ok, Color.Success),
-        ("Orphaned", s.Orphaned, Color.Info),
-        ("Orphaned files", s.OrphanedFiles, Color.Warning),
-        ("Missing series", s.MissingSeries, Color.Error),
-        ("Missing episodes", s.MissingEpisodes, Color.Error),
-        ("Missing subs", s.MissingSubs, Color.Warning),
-        ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+        new("Series",
+        [
+            ("OK", s.SeriesOk, Color.Success),
+            ("Orphaned", s.SeriesOrphaned, Color.Info),
+            ("Missing", s.SeriesMissing, Color.Error),
+        ]),
+        new("Episodes",
+        [
+            ("OK", s.EpisodesOk, Color.Success),
+            ("Orphaned", s.EpisodesOrphaned, Color.Warning),
+            ("Missing", s.EpisodesMissing, Color.Error),
+            ("Missing subs", s.EpisodesMissingSubs, Color.Warning),
+            ("Excessive subs", s.EpisodesExcessiveSubs, Color.Warning),
+        ]),
     ];
 
-    private static (string Label, int Value, Color Color)[] MovieTiles(MovieStats s) =>
+    private static StatsSection[] MovieSections(MovieStats s) =>
     [
-        ("OK", s.Ok, Color.Success),
-        ("Orphaned", s.Orphaned, Color.Info),
-        ("Orphaned files", s.OrphanedFiles, Color.Warning),
-        ("Missing movies", s.MissingMovies, Color.Error),
-        ("Missing subs", s.MissingSubs, Color.Warning),
-        ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+        new(null,
+        [
+            ("OK", s.Ok, Color.Success),
+            ("Orphaned", s.Orphaned, Color.Info),
+            ("Orphaned files", s.OrphanedFiles, Color.Warning),
+            ("Missing movies", s.MissingMovies, Color.Error),
+            ("Missing subs", s.MissingSubs, Color.Warning),
+            ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+        ]),
     ];
 
-    private RenderFragment RenderStatsCard(string title, (string Label, int Value, Color Color)[] tiles) =>
+    private RenderFragment RenderStatsCard(string title, StatsSection[] sections) =>
         @<MudPaper Class="pa-4" Outlined="true">
             <MudText Typo="Typo.h6" Class="mb-3">@title</MudText>
-            <div class="d-flex flex-wrap" style="gap: 8px;">
-                @foreach (var tile in tiles)
+            @foreach (var block in sections)
+            {
+                if (block.Subtitle is not null)
                 {
-                    <MudPaper Class="pa-3 d-flex flex-column align-center" Outlined="true" Style="flex: 1 1 110px;">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@tile.Label</MudText>
-                        <MudText Typo="Typo.h4" Color="@(tile.Value == 0 && tile.Color != Color.Success ? Color.Default : tile.Color)">@tile.Value</MudText>
-                    </MudPaper>
+                    <MudText Typo="Typo.subtitle2" Class="mt-2 mb-2 mud-text-secondary">@block.Subtitle</MudText>
                 }
-            </div>
+                <div class="d-flex flex-wrap mb-3" style="gap: 8px;">
+                    @foreach (var tile in block.Tiles)
+                    {
+                        <MudPaper Class="pa-3 d-flex flex-column align-center" Outlined="true" Style="flex: 1 1 110px;">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@tile.Label</MudText>
+                            <MudText Typo="Typo.h4" Color="@(tile.Value == 0 && tile.Color != Color.Success ? Color.Default : tile.Color)">@tile.Value</MudText>
+                        </MudPaper>
+                    }
+                </div>
+            }
         </MudPaper>;
 }

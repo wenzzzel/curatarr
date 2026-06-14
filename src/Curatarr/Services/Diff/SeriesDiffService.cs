@@ -15,6 +15,7 @@ public record SeriesDiffRow(
     string? DestinationFolder,
     int SourceEpisodes,
     int DestinationEpisodes,
+    int OkEpisodes,
     int OrphanedFiles,
     int MissingSubtitles,
     int OriginalSubtitles,
@@ -124,7 +125,7 @@ public class SeriesDiffService(
             })
             .ToListAsync(ct);
 
-        var excessiveBySeriesId = await ComputeExcessiveBySeriesAsync(db, ct);
+        var episodeAggregatesBySeriesId = await ComputeEpisodeAggregatesBySeriesAsync(db, ct);
 
         var destinationFolders = scanner.GetSeriesFolders()
             .ToDictionary(name => name, StringComparer.OrdinalIgnoreCase);
@@ -143,6 +144,7 @@ public class SeriesDiffService(
                 matchedDestinations.Add(dest);
             }
 
+            var aggregates = episodeAggregatesBySeriesId.GetValueOrDefault(series.Id) ?? EpisodeAggregates.Empty;
             rows.Add(new SeriesDiffRow(
                 series.Title,
                 series.SonarrId,
@@ -150,11 +152,12 @@ public class SeriesDiffService(
                 destinationMatch,
                 series.SourceEpisodes,
                 series.DestinationEpisodes,
+                aggregates.OkEpisodes,
                 series.OrphanedFiles,
                 series.MissingSubtitles,
                 series.OriginalSubtitles,
                 series.DownloadedSubtitles,
-                excessiveBySeriesId.GetValueOrDefault(series.Id)));
+                aggregates.ExcessiveSubtitles));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -167,6 +170,7 @@ public class SeriesDiffService(
                 DestinationFolder: folder,
                 SourceEpisodes: 0,
                 DestinationEpisodes: 0,
+                OkEpisodes: 0,
                 OrphanedFiles: 0,
                 MissingSubtitles: 0,
                 OriginalSubtitles: 0,
@@ -177,29 +181,52 @@ public class SeriesDiffService(
         return [.. rows.OrderBy(r => r.Title)];
     }
 
-    private static async Task<Dictionary<int, int>> ComputeExcessiveBySeriesAsync(
+    private sealed record EpisodeAggregates(int OkEpisodes, int ExcessiveSubtitles)
+    {
+        public static EpisodeAggregates Empty { get; } = new(0, 0);
+    }
+
+    private static async Task<Dictionary<int, EpisodeAggregates>> ComputeEpisodeAggregatesBySeriesAsync(
         CuratarrDbContext db, CancellationToken ct)
     {
-        var destSubs = await db.SubtitleFiles
-            .Where(sf => sf.Side == FileSide.Destination)
-            .Select(sf => new { SeriesId = sf.Episode.SeriesId, sf.EpisodeId, sf.Suffix })
+        var episodes = await db.Episodes
+            .Select(e => new
+            {
+                e.SeriesId,
+                HasSource = e.Files.Any(f => f.Side == FileSide.Source),
+                HasDestination = e.Files.Any(f => f.Side == FileSide.Destination),
+                SourceSubs = e.Subtitles.Where(s => s.Side == FileSide.Source).Select(s => s.Suffix).ToList(),
+                DestSubs = e.Subtitles.Where(s => s.Side == FileSide.Destination).Select(s => s.Suffix).ToList(),
+            })
             .ToListAsync(ct);
 
-        return destSubs
-            .GroupBy(x => x.SeriesId)
-            .ToDictionary(
-                seriesGroup => seriesGroup.Key,
-                seriesGroup => seriesGroup
-                    .GroupBy(x => x.EpisodeId)
-                    .Sum(epGroup =>
-                    {
-                        var set = epGroup.Select(x => x.Suffix).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                        return epGroup.Count(x =>
-                        {
-                            var original = SubtitleEquivalence.GetOriginalEquivalent(x.Suffix);
-                            return original is not null && set.Contains(original);
-                        });
-                    }));
+        var result = new Dictionary<int, EpisodeAggregates>();
+        foreach (var seriesGroup in episodes.GroupBy(e => e.SeriesId))
+        {
+            var ok = 0;
+            var excessive = 0;
+            foreach (var ep in seriesGroup)
+            {
+                var destSetCi = ep.DestSubs.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var epExcessive = ep.DestSubs.Count(s =>
+                {
+                    var original = SubtitleEquivalence.GetOriginalEquivalent(s);
+                    return original is not null && destSetCi.Contains(original);
+                });
+                excessive += epExcessive;
+
+                if (!ep.HasSource || !ep.HasDestination) continue;
+
+                var destSetOrd = ep.DestSubs.ToHashSet(StringComparer.Ordinal);
+                var epMissing = ep.SourceSubs.Count(s => !destSetOrd.Contains(s));
+                if (epMissing == 0 && epExcessive == 0)
+                {
+                    ok++;
+                }
+            }
+            result[seriesGroup.Key] = new EpisodeAggregates(ok, excessive);
+        }
+        return result;
     }
 
     public async Task<SeriesDetail?> GetSeriesDetailAsync(int sonarrId, CancellationToken ct = default)
