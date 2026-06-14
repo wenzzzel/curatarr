@@ -131,8 +131,10 @@ else
 
     private static StatusBadge StatusBadgeFor(MovieDetail movie) => (movie.HasSource, movie.HasDestination) switch
     {
-        (true, true) when movie.MissingSubtitles.Count == 0 && movie.ExcessiveSubtitles.Count == 0
+        (true, true) when movie.MissingSubtitles.Count == 0 && movie.ExcessiveSubtitles.Count == 0 && HasOriginalSub(movie)
             => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
+        (true, true) when movie.MissingSubtitles.Count == 0 && movie.ExcessiveSubtitles.Count == 0 && !HasOriginalSub(movie)
+            => new("No original subs", Color.Warning, Icons.Material.Filled.SubtitlesOff, 1),
         (true, true)
             => new(string.Join(", ", BuildIssues(movie)), Color.Warning, Icons.Material.Filled.Subtitles, 1),
         (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 3),
@@ -140,10 +142,14 @@ else
         _ => new("No file", Color.Default, Icons.Material.Filled.HelpOutline, 4),
     };
 
+    private static bool HasOriginalSub(MovieDetail movie) =>
+        movie.DestinationSubtitles.Any(s => s.Origin == SubtitleOrigin.Original);
+
     private static IEnumerable<string> BuildIssues(MovieDetail movie)
     {
         if (movie.MissingSubtitles.Count > 0) yield return $"{movie.MissingSubtitles.Count} missing subs";
         if (movie.ExcessiveSubtitles.Count > 0) yield return $"{movie.ExcessiveSubtitles.Count} excessive subs";
+        if (!HasOriginalSub(movie)) yield return "no original subs";
     }
 
     private static Color SubtitleColor(SubtitleOrigin origin) => origin switch

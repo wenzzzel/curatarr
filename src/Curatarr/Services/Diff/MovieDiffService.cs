@@ -30,7 +30,8 @@ public record MovieDiffRow(
         && !IsMissingDestination
         && OrphanedFiles == 0
         && MissingSubtitles == 0
-        && ExcessiveSubtitles == 0;
+        && ExcessiveSubtitles == 0
+        && OriginalSubtitles > 0;
 }
 
 public record MovieDetail(

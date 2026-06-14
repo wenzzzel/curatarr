@@ -28,11 +28,11 @@ else
     private MovieStats? movieStats;
 
     private record SeriesStats(
-        int SeriesOk, int SeriesOrphaned, int SeriesMissing,
+        int SeriesOk, int SeriesOrphaned, int SeriesMissing, int SeriesNoOriginalSubs,
         int EpisodesOk, int EpisodesOrphaned, int EpisodesMissing,
-        int EpisodesMissingSubs, int EpisodesExcessiveSubs);
+        int EpisodesMissingSubs, int EpisodesExcessiveSubs, int EpisodesNoOriginalSubs);
 
-    private record MovieStats(int Ok, int Orphaned, int OrphanedFiles, int MissingMovies, int MissingSubs, int ExcessiveSubs);
+    private record MovieStats(int Ok, int Orphaned, int OrphanedFiles, int MissingMovies, int MissingSubs, int ExcessiveSubs, int NoOriginalSubs);
 
     private record StatsSection(string? Subtitle, (string Label, int Value, Color Color)[] Tiles);
 
@@ -48,11 +48,13 @@ else
             SeriesOk: seriesRows.Count(r => r.IsOk),
             SeriesOrphaned: seriesRows.Count(r => r.IsOrphanedFolder),
             SeriesMissing: seriesRows.Count(r => r.IsMissingInDestination),
+            SeriesNoOriginalSubs: seriesRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0),
             EpisodesOk: seriesRows.Sum(r => r.OkEpisodes),
             EpisodesOrphaned: seriesRows.Sum(r => r.OrphanedFiles),
             EpisodesMissing: seriesRows.Sum(r => r.MissingEpisodes),
             EpisodesMissingSubs: seriesRows.Sum(r => r.MissingSubtitles),
-            EpisodesExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles));
+            EpisodesExcessiveSubs: seriesRows.Sum(r => r.ExcessiveSubtitles),
+            EpisodesNoOriginalSubs: seriesRows.Sum(r => r.EpisodesWithoutOriginalSubs));
 
         movieStats = new MovieStats(
             Ok: movieRows.Count(r => r.IsOk),
@@ -60,7 +62,8 @@ else
             OrphanedFiles: movieRows.Sum(r => r.OrphanedFiles),
             MissingMovies: movieRows.Count(r => r.IsMissingInDestination),
             MissingSubs: movieRows.Sum(r => r.MissingSubtitles),
-            ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles));
+            ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles),
+            NoOriginalSubs: movieRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0));
     }
 
     private static StatsSection[] SeriesSections(SeriesStats s) =>
@@ -70,6 +73,7 @@ else
             ("OK", s.SeriesOk, Color.Success),
             ("Orphaned", s.SeriesOrphaned, Color.Info),
             ("Missing", s.SeriesMissing, Color.Error),
+            ("No original subs", s.SeriesNoOriginalSubs, Color.Warning),
         ]),
         new("Episodes",
         [
@@ -78,6 +82,7 @@ else
             ("Missing", s.EpisodesMissing, Color.Error),
             ("Missing subs", s.EpisodesMissingSubs, Color.Warning),
             ("Excessive subs", s.EpisodesExcessiveSubs, Color.Warning),
+            ("No original subs", s.EpisodesNoOriginalSubs, Color.Warning),
         ]),
     ];
 
@@ -91,6 +96,7 @@ else
             ("Missing movies", s.MissingMovies, Color.Error),
             ("Missing subs", s.MissingSubs, Color.Warning),
             ("Excessive subs", s.ExcessiveSubs, Color.Warning),
+            ("No original subs", s.NoOriginalSubs, Color.Warning),
         ]),
     ];
 
