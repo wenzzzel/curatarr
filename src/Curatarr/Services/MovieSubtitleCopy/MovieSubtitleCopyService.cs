@@ -1,0 +1,107 @@
+using Curatarr.Configuration;
+using Curatarr.Data;
+using Curatarr.Models;
+using Curatarr.Services.Subtitle;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+namespace Curatarr.Services.MovieSubtitleCopy;
+
+public record MovieSubtitleCopyResult(int FilesCopied, int CopyFailures);
+
+public class MovieSubtitleCopyService(
+    IDbContextFactory<CuratarrDbContext> dbFactory,
+    IOptions<MovieSourceOptions> sourceOptions,
+    IOptions<MovieDestinationOptions> destinationOptions,
+    ILogger<MovieSubtitleCopyService> logger)
+{
+    private readonly MovieSourceOptions _sourceOptions = sourceOptions.Value;
+    private readonly MovieDestinationOptions _destinationOptions = destinationOptions.Value;
+
+    public async Task<MovieSubtitleCopyResult> RunAsync(CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_sourceOptions.Root) ||
+            string.IsNullOrWhiteSpace(_destinationOptions.Root))
+        {
+            return new MovieSubtitleCopyResult(0, 0);
+        }
+
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
+        var allMovies = await db.Movies
+            .Include(m => m.Files)
+            .Include(m => m.Subtitles)
+            .ToListAsync(ct);
+
+        var copied = 0;
+        var failed = 0;
+
+        foreach (var movie in allMovies)
+        {
+            var leaf = PathHelpers.GetLeafFolder(movie.Path);
+            if (leaf is null) continue;
+
+            var sourceFolder = Path.Combine(_sourceOptions.Root, leaf);
+            var destFolder = Path.Combine(_destinationOptions.Root, leaf);
+
+            var destVideo = movie.Files.FirstOrDefault(f => f.Side == FileSide.Destination);
+            if (destVideo is null) continue;
+
+            var destSuffixes = movie.Subtitles
+                .Where(s => s.Side == FileSide.Destination)
+                .Select(s => s.Suffix)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var destVideoFullPath = Path.Combine(destFolder, destVideo.RelativePath);
+            var destDir = Path.GetDirectoryName(destVideoFullPath);
+            var destStem = Path.GetFileNameWithoutExtension(destVideoFullPath);
+            if (destDir is null || string.IsNullOrEmpty(destStem)) continue;
+
+            foreach (var sub in movie.Subtitles.Where(s => s.Side == FileSide.Source))
+            {
+                if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
+
+                var sourcePath = Path.Combine(sourceFolder, sub.RelativePath);
+                var destPath = Path.Combine(destDir, destStem + sub.Suffix);
+
+                var outcome = TryCopy(sourcePath, destPath);
+                if (outcome == CopyOutcome.Copied) copied++;
+                else if (outcome == CopyOutcome.Failed) failed++;
+            }
+        }
+
+        return new MovieSubtitleCopyResult(copied, failed);
+    }
+
+    private static bool ShouldSkip(string sourceSuffix, HashSet<string> destSuffixes)
+    {
+        if (destSuffixes.Contains(sourceSuffix)) return true;
+        var original = SubtitleEquivalence.GetOriginalEquivalent(sourceSuffix);
+        return original is not null && destSuffixes.Contains(original);
+    }
+
+    private CopyOutcome TryCopy(string sourcePath, string destPath)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            return CopyOutcome.SkippedMissingSource;
+        }
+        if (File.Exists(destPath))
+        {
+            return CopyOutcome.SkippedAlreadyExists;
+        }
+        try
+        {
+            File.Copy(sourcePath, destPath);
+            logger.LogInformation("Copied subtitle {Source} -> {Dest}", sourcePath, destPath);
+            return CopyOutcome.Copied;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to copy subtitle {Source} -> {Dest}", sourcePath, destPath);
+            return CopyOutcome.Failed;
+        }
+    }
+
+    private enum CopyOutcome { Copied, SkippedAlreadyExists, SkippedMissingSource, Failed }
+}

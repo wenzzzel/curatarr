@@ -8,12 +8,14 @@ using Curatarr.Services.MovieDestination;
 using Curatarr.Services.MovieOrphanedFileCleanup;
 using Curatarr.Services.MovieSubtitle;
 using Curatarr.Services.MovieSubtitleCleanup;
+using Curatarr.Services.MovieSubtitleCopy;
 using Curatarr.Services.OrphanedFileCleanup;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
 using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
 using Curatarr.Services.SubtitleCleanup;
+using Curatarr.Services.SubtitleCopy;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -90,10 +92,14 @@ builder.Services.AddScoped<MovieDiffService>();
 builder.Services.AddScoped<SubtitleCleanupService>();
 builder.Services.AddScoped<MovieSubtitleCleanupService>();
 
+builder.Services.AddScoped<SubtitleCopyService>();
+builder.Services.AddScoped<MovieSubtitleCopyService>();
+
 builder.Services.AddScoped<OrphanedFileCleanupService>();
 builder.Services.AddScoped<MovieOrphanedFileCleanupService>();
 
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
+builder.Services.AddSingleton(SubtitleCopyScheduledTask.Create(TimeSpan.FromHours(1)));
 builder.Services.AddSingleton(ExcessiveSubtitleCleanupScheduledTask.Create(TimeSpan.FromHours(12)));
 builder.Services.AddSingleton(OrphanedFileCleanupScheduledTask.Create(TimeSpan.FromHours(24)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
