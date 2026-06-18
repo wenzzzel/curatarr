@@ -58,7 +58,7 @@ public record EpisodeDiffRow(
     public IReadOnlyList<SubtitleEntry> MissingSubtitles =>
         HasSource && HasDestination
             ? [.. SourceSubtitles.Where(src => !DestinationSubtitles.Any(dst =>
-                dst.Suffix.Equals(src.Suffix, StringComparison.OrdinalIgnoreCase)))]
+                SubtitleNaming.DestinationSatisfiesSource(dst.Suffix, src.Suffix)))]
             : [];
 
     public IReadOnlyList<SubtitleEntry> ExcessiveSubtitles
@@ -99,11 +99,6 @@ public class SeriesDiffService(
                 SourceEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Source)),
                 DestinationEpisodes = s.Episodes.Count(e => e.Files.Any(f => f.Side == FileSide.Destination)),
                 OrphanedFiles = s.OrphanedDestinationFiles.Count,
-                MissingSubtitles = s.Episodes
-                    .Where(e => e.Files.Any(f => f.Side == FileSide.Source) && e.Files.Any(f => f.Side == FileSide.Destination))
-                    .SelectMany(e => e.Subtitles.Where(srcSub => srcSub.Side == FileSide.Source))
-                    .Count(srcSub => !srcSub.Episode.Subtitles.Any(destSub =>
-                        destSub.Side == FileSide.Destination && destSub.Suffix == srcSub.Suffix)),
                 OriginalSubtitles = s.Episodes
                     .SelectMany(e => e.Subtitles)
                     .Count(sub => sub.Side == FileSide.Destination && sub.Origin == SubtitleOrigin.Original),
@@ -146,7 +141,7 @@ public class SeriesDiffService(
                 aggregates.OkEpisodes,
                 aggregates.EpisodesWithoutOriginalSubs,
                 series.OrphanedFiles,
-                series.MissingSubtitles,
+                aggregates.MissingSubtitles,
                 series.OriginalSubtitles,
                 series.DownloadedSubtitles,
                 series.UnknownSubtitles,
@@ -176,9 +171,9 @@ public class SeriesDiffService(
         return [.. rows.OrderBy(r => r.Title)];
     }
 
-    private sealed record EpisodeAggregates(int OkEpisodes, int EpisodesWithoutOriginalSubs, int ExcessiveSubtitles)
+    private sealed record EpisodeAggregates(int OkEpisodes, int EpisodesWithoutOriginalSubs, int MissingSubtitles, int ExcessiveSubtitles)
     {
-        public static EpisodeAggregates Empty { get; } = new(0, 0, 0);
+        public static EpisodeAggregates Empty { get; } = new(0, 0, 0, 0);
     }
 
     private static async Task<Dictionary<int, EpisodeAggregates>> ComputeEpisodeAggregatesBySeriesAsync(
@@ -204,6 +199,7 @@ public class SeriesDiffService(
         {
             var ok = 0;
             var withoutOriginal = 0;
+            var missing = 0;
             var excessive = 0;
             foreach (var ep in seriesGroup)
             {
@@ -221,14 +217,16 @@ public class SeriesDiffService(
 
                 if (!ep.HasSource) continue;
 
-                var destSetOrd = ep.DestSubs.Select(s => s.Suffix).ToHashSet(StringComparer.Ordinal);
-                var epMissing = ep.SourceSubs.Count(s => !destSetOrd.Contains(s));
+                var epMissing = ep.SourceSubs.Count(src =>
+                    !ep.DestSubs.Any(dst => SubtitleNaming.DestinationSatisfiesSource(dst.Suffix, src)));
+                missing += epMissing;
+
                 if (epMissing == 0 && epExcessive == 0 && (epHasOriginal || epHasUnknown))
                 {
                     ok++;
                 }
             }
-            result[seriesGroup.Key] = new EpisodeAggregates(ok, withoutOriginal, excessive);
+            result[seriesGroup.Key] = new EpisodeAggregates(ok, withoutOriginal, missing, excessive);
         }
         return result;
     }
