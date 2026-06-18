@@ -178,7 +178,7 @@ else
     };
 
     private static bool HasOriginalSub(EpisodeDiffRow ep) =>
-        ep.DestinationSubtitles.Any(s => s.Origin == SubtitleOrigin.Original);
+        ep.DestinationSubtitles.Any(s => s.Origin is SubtitleOrigin.Original or SubtitleOrigin.Unknown);
 
     private static IEnumerable<string> BuildEpisodeIssues(EpisodeDiffRow ep)
     {

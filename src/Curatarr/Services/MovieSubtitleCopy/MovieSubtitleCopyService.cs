@@ -59,10 +59,14 @@ public class MovieSubtitleCopyService(
 
             foreach (var sub in movie.Subtitles.Where(s => s.Side == FileSide.Source))
             {
-                if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
+                var destSuffix = sub.Origin == SubtitleOrigin.Original
+                    ? SubtitleNaming.ToOriginalVariant(sub.Suffix)
+                    : sub.Suffix;
+
+                if (ShouldSkip(destSuffix, destSuffixes)) continue;
 
                 var sourcePath = Path.Combine(sourceFolder, sub.RelativePath);
-                var destPath = Path.Combine(destDir, destStem + sub.Suffix);
+                var destPath = Path.Combine(destDir, destStem + destSuffix);
 
                 var outcome = TryCopy(sourcePath, destPath);
                 if (outcome == CopyOutcome.Copied) copied++;
@@ -73,11 +77,18 @@ public class MovieSubtitleCopyService(
         return new MovieSubtitleCopyResult(copied, failed);
     }
 
-    private static bool ShouldSkip(string sourceSuffix, HashSet<string> destSuffixes)
+    private static bool ShouldSkip(string destSuffix, HashSet<string> destSuffixes)
     {
-        if (destSuffixes.Contains(sourceSuffix)) return true;
-        var original = SubtitleEquivalence.GetOriginalEquivalent(sourceSuffix);
-        return original is not null && destSuffixes.Contains(original);
+        if (destSuffixes.Contains(destSuffix)) return true;
+
+        if (SubtitleNaming.IsOriginalVariant(destSuffix)
+            && destSuffixes.Contains(SubtitleNaming.FromOriginalVariant(destSuffix)))
+        {
+            return true;
+        }
+
+        return SubtitleEquivalence.GetOriginalEquivalents(destSuffix)
+            .Any(eq => destSuffixes.Contains(eq));
     }
 
     private CopyOutcome TryCopy(string sourcePath, string destPath)

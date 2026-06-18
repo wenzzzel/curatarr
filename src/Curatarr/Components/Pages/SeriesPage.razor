@@ -134,9 +134,9 @@ else
     {
         (false, true) => new("Orphaned folder", Color.Info, Icons.Material.Filled.FolderOff, 2),
         (true, false) => new("Missing in destination", Color.Error, Icons.Material.Filled.Cancel, 4),
-        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0 && row.OriginalSubtitles > 0
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0 && (row.OriginalSubtitles > 0 || row.UnknownSubtitles > 0)
             => new("OK", Color.Success, Icons.Material.Filled.CheckCircle, 0),
-        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0 && row.OriginalSubtitles == 0
+        (true, true) when row.MissingEpisodes == 0 && row.OrphanedFiles == 0 && row.MissingSubtitles == 0 && row.ExcessiveSubtitles == 0 && row.OriginalSubtitles == 0 && row.UnknownSubtitles == 0
             => new("No original subs", Color.Warning, Icons.Material.Filled.SubtitlesOff, 1),
         (true, true) when row.MissingEpisodes > 0
             => new(string.Join(", ", BuildIssues(row)), Color.Error, Icons.Material.Filled.Error, 3),
@@ -150,6 +150,6 @@ else
         if (row.OrphanedFiles > 0) yield return $"{row.OrphanedFiles} orphaned";
         if (row.MissingSubtitles > 0) yield return $"{row.MissingSubtitles} missing subs";
         if (row.ExcessiveSubtitles > 0) yield return $"{row.ExcessiveSubtitles} excessive subs";
-        if (row.OriginalSubtitles == 0) yield return "no original subs";
+        if (row.OriginalSubtitles == 0 && row.UnknownSubtitles == 0) yield return "no original subs";
     }
 }

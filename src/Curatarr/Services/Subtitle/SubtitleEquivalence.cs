@@ -8,17 +8,21 @@ public static class SubtitleEquivalence
         ["sv"] = "swe",
     };
 
-    public static string? GetOriginalEquivalent(string downloadedSuffix)
+    /// <summary>
+    /// Returns the destination-side suffixes that, if present, mean the supplied downloaded
+    /// suffix is excessive (an original-language equivalent is already there). Includes both
+    /// the legacy bare form (".eng.srt") and the renamed form (".eng.original.srt") so the
+    /// logic works during and after the rename migration.
+    /// </summary>
+    public static IReadOnlyList<string> GetOriginalEquivalents(string downloadedSuffix)
     {
         var firstDot = downloadedSuffix.IndexOf('.', 1);
-        if (firstDot < 0) return null;
+        if (firstDot < 0) return [];
 
         var lang = downloadedSuffix[1..firstDot];
-        if (!TwoToThreeLetter.TryGetValue(lang, out var threeLetter))
-        {
-            return null;
-        }
+        if (!TwoToThreeLetter.TryGetValue(lang, out var threeLetter)) return [];
 
-        return "." + threeLetter + downloadedSuffix[firstDot..];
+        var bare = "." + threeLetter + downloadedSuffix[firstDot..];
+        return [bare, SubtitleNaming.ToOriginalVariant(bare)];
     }
 }

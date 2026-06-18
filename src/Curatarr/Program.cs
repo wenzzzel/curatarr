@@ -2,6 +2,7 @@ using Curatarr.Components;
 using Curatarr.Configuration;
 using Curatarr.Data;
 using Curatarr.Endpoints;
+using Curatarr.Services.Bazarr;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
 using Curatarr.Services.MovieDestination;
@@ -9,6 +10,7 @@ using Curatarr.Services.MovieOrphanedFileCleanup;
 using Curatarr.Services.MovieSubtitle;
 using Curatarr.Services.MovieSubtitleCleanup;
 using Curatarr.Services.MovieSubtitleCopy;
+using Curatarr.Services.MovieSubtitleRename;
 using Curatarr.Services.OrphanedFileCleanup;
 using Curatarr.Services.Radarr;
 using Curatarr.Services.Scheduling;
@@ -16,6 +18,7 @@ using Curatarr.Services.Sonarr;
 using Curatarr.Services.Subtitle;
 using Curatarr.Services.SubtitleCleanup;
 using Curatarr.Services.SubtitleCopy;
+using Curatarr.Services.SubtitleRename;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -64,6 +67,21 @@ builder.Services.AddHttpClient<RadarrClient>((sp, client) =>
 
 builder.Services.AddScoped<RadarrSyncService>();
 
+builder.Services.Configure<BazarrOptions>(
+    builder.Configuration.GetSection(BazarrOptions.SectionName));
+
+builder.Services.AddHttpClient<BazarrClient>((sp, client) =>
+{
+    var bazarr = sp.GetRequiredService<IOptions<BazarrOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(bazarr.Url))
+    {
+        client.BaseAddress = new Uri(bazarr.Url.TrimEnd('/') + "/");
+        client.DefaultRequestHeaders.Add("X-API-KEY", bazarr.ApiKey);
+    }
+});
+
+builder.Services.AddScoped<BazarrSyncService>();
+
 builder.Services.Configure<SeriesDestinationOptions>(
     builder.Configuration.GetSection(SeriesDestinationOptions.SectionName));
 
@@ -94,6 +112,9 @@ builder.Services.AddScoped<MovieSubtitleCleanupService>();
 
 builder.Services.AddScoped<SubtitleCopyService>();
 builder.Services.AddScoped<MovieSubtitleCopyService>();
+
+builder.Services.AddScoped<SubtitleRenameService>();
+builder.Services.AddScoped<MovieSubtitleRenameService>();
 
 builder.Services.AddScoped<OrphanedFileCleanupService>();
 builder.Services.AddScoped<MovieOrphanedFileCleanupService>();
