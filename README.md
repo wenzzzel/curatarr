@@ -43,8 +43,6 @@ docker run -d \
   -e Sonarr__ApiKey=your-sonarr-api-key \
   -e Radarr__Url=http://radarr:7878 \
   -e Radarr__ApiKey=your-radarr-api-key \
-  -e Bazarr__Url=http://bazarr:6767 \
-  -e Bazarr__ApiKey=your-bazarr-api-key \
   -e SeriesSource__Root=/media/series-source \
   -e SeriesDestination__Root=/media/series-destination \
   -e MovieSource__Root=/media/movie-source \
@@ -79,8 +77,6 @@ services:
       Sonarr__ApiKey: your-sonarr-api-key
       Radarr__Url: http://radarr:7878
       Radarr__ApiKey: your-radarr-api-key
-      Bazarr__Url: http://bazarr:6767
-      Bazarr__ApiKey: your-bazarr-api-key
       SeriesSource__Root: /media/series-source
       SeriesDestination__Root: /media/series-destination
       MovieSource__Root: /media/movie-source

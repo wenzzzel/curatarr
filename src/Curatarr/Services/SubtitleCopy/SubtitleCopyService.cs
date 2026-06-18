@@ -61,14 +61,10 @@ public class SubtitleCopyService(
 
                 foreach (var sub in episode.Subtitles.Where(s => s.Side == FileSide.Source))
                 {
-                    var destSuffix = sub.Origin == SubtitleOrigin.Original
-                        ? SubtitleNaming.ToOriginalVariant(sub.Suffix)
-                        : sub.Suffix;
-
-                    if (ShouldSkip(destSuffix, destSuffixes)) continue;
+                    if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
 
                     var sourcePath = Path.Combine(sourceFolder, sub.RelativePath);
-                    var destPath = Path.Combine(destDir, destStem + destSuffix);
+                    var destPath = Path.Combine(destDir, destStem + sub.Suffix);
 
                     var outcome = TryCopy(sourcePath, destPath);
                     if (outcome == CopyOutcome.Copied) copied++;
@@ -80,20 +76,11 @@ public class SubtitleCopyService(
         return new SubtitleCopyResult(copied, failed);
     }
 
-    private static bool ShouldSkip(string destSuffix, HashSet<string> destSuffixes)
+    private static bool ShouldSkip(string sourceSuffix, HashSet<string> destSuffixes)
     {
-        if (destSuffixes.Contains(destSuffix)) return true;
-
-        // If we're about to write the .original variant, the legacy bare form may already be on disk.
-        if (SubtitleNaming.IsOriginalVariant(destSuffix)
-            && destSuffixes.Contains(SubtitleNaming.FromOriginalVariant(destSuffix)))
-        {
-            return true;
-        }
-
-        // For downloaded suffixes (e.g. .en.srt), the original-language equivalent makes this excessive.
-        return SubtitleEquivalence.GetOriginalEquivalents(destSuffix)
-            .Any(eq => destSuffixes.Contains(eq));
+        if (destSuffixes.Contains(sourceSuffix)) return true;
+        var original = SubtitleEquivalence.GetOriginalEquivalent(sourceSuffix);
+        return original is not null && destSuffixes.Contains(original);
     }
 
     private CopyOutcome TryCopy(string sourcePath, string destPath)

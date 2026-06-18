@@ -49,10 +49,9 @@ public class MovieSubtitleCleanupService(
 
             foreach (var sub in destSubs)
             {
-                var keeper = SubtitleEquivalence.GetOriginalEquivalents(sub.Suffix)
-                    .Select(eq => destSuffixesToRow.GetValueOrDefault(eq))
-                    .FirstOrDefault(row => row is not null);
-                if (keeper is null) continue;
+                var originalSuffix = SubtitleEquivalence.GetOriginalEquivalent(sub.Suffix);
+                if (originalSuffix is null) continue;
+                if (!destSuffixesToRow.TryGetValue(originalSuffix, out var keeper)) continue;
 
                 var excessivePath = Path.Combine(movieFolder, sub.RelativePath);
                 var keeperPath = Path.Combine(movieFolder, keeper.RelativePath);

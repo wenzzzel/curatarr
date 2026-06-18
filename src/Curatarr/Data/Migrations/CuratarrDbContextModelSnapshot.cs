@@ -167,9 +167,6 @@ namespace Curatarr.Data.Migrations
                     b.Property<DateTimeOffset>("ObservedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Origin")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("RelativePath")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -290,9 +287,6 @@ namespace Curatarr.Data.Migrations
 
                     b.Property<DateTimeOffset>("ObservedAt")
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("Origin")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("RelativePath")
                         .IsRequired()
