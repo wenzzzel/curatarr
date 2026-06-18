@@ -90,7 +90,8 @@ public class BazarrSyncService(
 
                 foreach (var sub in episode.Subtitles.Where(x => x.Side == FileSide.Destination))
                 {
-                    var origin = sourceOriginBySuffix.TryGetValue(sub.Suffix, out var inherited)
+                    var lookupSuffix = SubtitleNaming.FromOriginalVariant(sub.Suffix);
+                    var origin = sourceOriginBySuffix.TryGetValue(lookupSuffix, out var inherited)
                         ? inherited
                         : SubtitleOrigin.Unknown;
                     if (sub.Origin != origin)
@@ -132,7 +133,8 @@ public class BazarrSyncService(
 
             foreach (var sub in m.Subtitles.Where(x => x.Side == FileSide.Destination))
             {
-                var origin = sourceOriginBySuffix.TryGetValue(sub.Suffix, out var inherited)
+                var lookupSuffix = SubtitleNaming.FromOriginalVariant(sub.Suffix);
+                var origin = sourceOriginBySuffix.TryGetValue(lookupSuffix, out var inherited)
                     ? inherited
                     : SubtitleOrigin.Unknown;
                 if (sub.Origin != origin)
