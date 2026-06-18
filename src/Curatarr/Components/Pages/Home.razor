@@ -48,7 +48,7 @@ else
             SeriesOk: seriesRows.Count(r => r.IsOk),
             SeriesOrphaned: seriesRows.Count(r => r.IsOrphanedFolder),
             SeriesMissing: seriesRows.Count(r => r.IsMissingInDestination),
-            SeriesNoOriginalSubs: seriesRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0),
+            SeriesNoOriginalSubs: seriesRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0 && r.UnknownSubtitles == 0),
             EpisodesOk: seriesRows.Sum(r => r.OkEpisodes),
             EpisodesOrphaned: seriesRows.Sum(r => r.OrphanedFiles),
             EpisodesMissing: seriesRows.Sum(r => r.MissingEpisodes),
@@ -63,7 +63,7 @@ else
             MissingMovies: movieRows.Count(r => r.IsMissingInDestination),
             MissingSubs: movieRows.Sum(r => r.MissingSubtitles),
             ExcessiveSubs: movieRows.Sum(r => r.ExcessiveSubtitles),
-            NoOriginalSubs: movieRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0));
+            NoOriginalSubs: movieRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0 && r.UnknownSubtitles == 0));
     }
 
     private static StatsSection[] SeriesSections(SeriesStats s) =>

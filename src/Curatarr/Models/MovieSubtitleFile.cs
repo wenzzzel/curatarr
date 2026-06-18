@@ -1,3 +1,5 @@
+using Curatarr.Services.Subtitle;
+
 namespace Curatarr.Models;
 
 public class MovieSubtitleFile
@@ -15,6 +17,8 @@ public class MovieSubtitleFile
     public required string RelativePath { get; set; }
 
     public long SizeBytes { get; set; }
+
+    public SubtitleOrigin Origin { get; set; }
 
     public DateTimeOffset ObservedAt { get; set; }
 }

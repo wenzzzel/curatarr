@@ -87,7 +87,7 @@ public class SubtitleSyncService(
         var observedSuffixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var count = 0;
 
-        foreach (var suffix in _subtitleOptions.Suffixes)
+        foreach (var suffix in ExpandSuffixesWithOriginalVariants(_subtitleOptions.Suffixes))
         {
             var subtitlePath = Path.Combine(videoDir, videoStem + suffix);
             if (!File.Exists(subtitlePath)) continue;
@@ -124,6 +124,17 @@ public class SubtitleSyncService(
         foreach (var sub in toRemove)
         {
             episode.Subtitles.Remove(sub);
+        }
+    }
+
+    private static IEnumerable<string> ExpandSuffixesWithOriginalVariants(IEnumerable<string> suffixes)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var suffix in suffixes)
+        {
+            if (seen.Add(suffix)) yield return suffix;
+            var variant = SubtitleNaming.ToOriginalVariant(suffix);
+            if (seen.Add(variant)) yield return variant;
         }
     }
 

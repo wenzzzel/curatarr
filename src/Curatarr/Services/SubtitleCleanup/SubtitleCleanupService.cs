@@ -51,9 +51,10 @@ public class SubtitleCleanupService(
 
                 foreach (var sub in destSubs)
                 {
-                    var originalSuffix = SubtitleEquivalence.GetOriginalEquivalent(sub.Suffix);
-                    if (originalSuffix is null) continue;
-                    if (!destSuffixesToRow.TryGetValue(originalSuffix, out var keeper)) continue;
+                    var keeper = SubtitleEquivalence.GetOriginalEquivalents(sub.Suffix)
+                        .Select(eq => destSuffixesToRow.GetValueOrDefault(eq))
+                        .FirstOrDefault(row => row is not null);
+                    if (keeper is null) continue;
 
                     var excessivePath = Path.Combine(seriesFolder, sub.RelativePath);
                     var keeperPath = Path.Combine(seriesFolder, keeper.RelativePath);
