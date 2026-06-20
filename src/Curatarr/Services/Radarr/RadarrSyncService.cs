@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Curatarr.Services.Radarr;
 
-public record RadarrSyncResult(int MovieCount);
+public record RadarrSyncResult(int MovieCount, int RemovedCount);
 
 public class RadarrSyncService(
     RadarrClient client,
@@ -52,8 +52,17 @@ public class RadarrSyncService(
             }
         }
 
+        var removedCount = 0;
+        if (incoming.Count > 0)
+        {
+            var incomingIds = incoming.Select(m => m.Id).ToHashSet();
+            var stale = existing.Values.Where(m => !incomingIds.Contains(m.RadarrId)).ToList();
+            db.Movies.RemoveRange(stale);
+            removedCount = stale.Count;
+        }
+
         await db.SaveChangesAsync(ct);
-        return new RadarrSyncResult(incoming.Count);
+        return new RadarrSyncResult(incoming.Count, removedCount);
     }
 
     private static void UpsertFile(Movie movie, FileSide side, string relativePath, long sizeBytes, DateTimeOffset now)

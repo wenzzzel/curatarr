@@ -30,8 +30,10 @@ public static class SyncEndpoints
             return Results.Ok(new
             {
                 series = sonarrResult.SeriesCount,
+                seriesRemoved = sonarrResult.RemovedSeriesCount,
                 episodes = sonarrResult.EpisodeCount,
                 movies = radarrResult.MovieCount,
+                moviesRemoved = radarrResult.RemovedCount,
                 destinationSeriesScanned = destinationResult.SeriesScanned,
                 destinationFilesMatched = destinationResult.FilesMatched,
                 destinationOrphanedFiles = destinationResult.OrphanedFiles,

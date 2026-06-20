@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Curatarr.Services.Sonarr;
 
-public record SonarrSyncResult(int SeriesCount, int EpisodeCount);
+public record SonarrSyncResult(int SeriesCount, int EpisodeCount, int RemovedSeriesCount);
 
 public class SonarrSyncService(
     SonarrClient client,
@@ -15,7 +15,7 @@ public class SonarrSyncService(
         var now = DateTimeOffset.UtcNow;
         await using var db = await dbFactory.CreateDbContextAsync(ct);
 
-        var seriesCount = await SyncSeriesAsync(db, now, ct);
+        var (seriesCount, removedSeriesCount) = await SyncSeriesAsync(db, now, ct);
 
         var allSeries = await db.Series
             .Include(s => s.Episodes)
@@ -29,10 +29,10 @@ public class SonarrSyncService(
         }
 
         await db.SaveChangesAsync(ct);
-        return new SonarrSyncResult(seriesCount, episodeCount);
+        return new SonarrSyncResult(seriesCount, episodeCount, removedSeriesCount);
     }
 
-    private async Task<int> SyncSeriesAsync(CuratarrDbContext db, DateTimeOffset now, CancellationToken ct)
+    private async Task<(int Count, int RemovedCount)> SyncSeriesAsync(CuratarrDbContext db, DateTimeOffset now, CancellationToken ct)
     {
         var incoming = await client.GetSeriesAsync(ct);
         var existing = await db.Series.ToDictionaryAsync(s => s.SonarrId, ct);
@@ -57,8 +57,17 @@ public class SonarrSyncService(
             }
         }
 
+        var removedCount = 0;
+        if (incoming.Count > 0)
+        {
+            var incomingIds = incoming.Select(s => s.Id).ToHashSet();
+            var stale = existing.Values.Where(s => !incomingIds.Contains(s.SonarrId)).ToList();
+            db.Series.RemoveRange(stale);
+            removedCount = stale.Count;
+        }
+
         await db.SaveChangesAsync(ct);
-        return incoming.Count;
+        return (incoming.Count, removedCount);
     }
 
     private async Task<int> SyncEpisodesForSeriesAsync(

@@ -31,8 +31,8 @@ public static class SyncScheduledTask
         var subResult = await subtitles.SyncAsync(ct);
         var movieSubResult = await movieSubtitles.SyncAsync(ct);
 
-        return $"{sonarrResult.SeriesCount} series, {sonarrResult.EpisodeCount} episodes, " +
-               $"{radarrResult.MovieCount} movies, " +
+        return $"{sonarrResult.SeriesCount} series ({sonarrResult.RemovedSeriesCount} removed), {sonarrResult.EpisodeCount} episodes, " +
+               $"{radarrResult.MovieCount} movies ({radarrResult.RemovedCount} removed), " +
                $"{destResult.FilesMatched} series destination files ({destResult.OrphanedFiles} orphaned), " +
                $"{movieDestResult.FilesMatched} movie destination files ({movieDestResult.OrphanedFiles} orphaned), " +
                $"{subResult.SourceFound}/{subResult.DestinationFound} series source/destination subtitles, " +
