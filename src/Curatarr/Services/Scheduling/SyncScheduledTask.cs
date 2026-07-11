@@ -10,7 +10,7 @@ namespace Curatarr.Services.Scheduling;
 public static class SyncScheduledTask
 {
     public static ScheduledTask Create(TimeSpan interval) => new(
-        name: "Sync",
+        name: "Refresh state",
         description: "Pull series and movies from Sonarr and Radarr, scan the destination trees, and refresh subtitles.",
         interval: interval,
         action: RunAsync);
