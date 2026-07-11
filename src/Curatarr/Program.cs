@@ -4,6 +4,7 @@ using Curatarr.Data;
 using Curatarr.Endpoints;
 using Curatarr.Services.Destination;
 using Curatarr.Services.Diff;
+using Curatarr.Services.Metrics;
 using Curatarr.Services.MovieDestination;
 using Curatarr.Services.MovieOrphanedFileCleanup;
 using Curatarr.Services.MovieSubtitle;
@@ -20,6 +21,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MudBlazor.Services;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,5 +132,14 @@ app.MapHealthEndpoints();
 app.MapSonarrEndpoints();
 app.MapRadarrEndpoints();
 app.MapSyncEndpoints();
+app.MapMetrics();
+
+Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(async ct =>
+{
+    using var scope = app.Services.CreateScope();
+    var seriesDiff = scope.ServiceProvider.GetRequiredService<SeriesDiffService>();
+    var movieDiff = scope.ServiceProvider.GetRequiredService<MovieDiffService>();
+    await CuratarrMetrics.RefreshAsync(seriesDiff, movieDiff, ct);
+});
 
 await app.RunAsync();
