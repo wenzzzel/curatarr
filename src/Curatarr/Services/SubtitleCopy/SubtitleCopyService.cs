@@ -35,6 +35,7 @@ public class SubtitleCopyService(
 
         var copied = 0;
         var failed = 0;
+        var now = DateTimeOffset.UtcNow;
 
         foreach (var series in allSeries)
         {
@@ -44,7 +45,7 @@ public class SubtitleCopyService(
             var sourceFolder = Path.Combine(_sourceOptions.Root, leaf);
             var destFolder = Path.Combine(_destinationOptions.Root, leaf);
 
-            foreach (var episode in series.Episodes)
+            foreach (var episode in series.Episodes.ToList())
             {
                 var destVideo = episode.Files.FirstOrDefault(f => f.Side == FileSide.Destination);
                 if (destVideo is null) continue;
@@ -59,7 +60,7 @@ public class SubtitleCopyService(
                 var destStem = Path.GetFileNameWithoutExtension(destVideoFullPath);
                 if (destDir is null || string.IsNullOrEmpty(destStem)) continue;
 
-                foreach (var sub in episode.Subtitles.Where(s => s.Side == FileSide.Source))
+                foreach (var sub in episode.Subtitles.Where(s => s.Side == FileSide.Source).ToList())
                 {
                     if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
 
@@ -67,12 +68,28 @@ public class SubtitleCopyService(
                     var destPath = Path.Combine(destDir, destStem + sub.Suffix);
 
                     var outcome = TryCopy(sourcePath, destPath);
-                    if (outcome == CopyOutcome.Copied) copied++;
-                    else if (outcome == CopyOutcome.Failed) failed++;
+                    if (outcome == CopyOutcome.Copied)
+                    {
+                        episode.Subtitles.Add(new SubtitleFile
+                        {
+                            Side = FileSide.Destination,
+                            Suffix = sub.Suffix,
+                            RelativePath = Path.GetRelativePath(destFolder, destPath),
+                            SizeBytes = new FileInfo(destPath).Length,
+                            ObservedAt = now,
+                        });
+                        destSuffixes.Add(sub.Suffix);
+                        copied++;
+                    }
+                    else if (outcome == CopyOutcome.Failed)
+                    {
+                        failed++;
+                    }
                 }
             }
         }
 
+        await db.SaveChangesAsync(ct);
         return new SubtitleCopyResult(copied, failed);
     }
 

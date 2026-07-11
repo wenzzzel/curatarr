@@ -35,6 +35,7 @@ public class MovieSubtitleCopyService(
 
         var copied = 0;
         var failed = 0;
+        var now = DateTimeOffset.UtcNow;
 
         foreach (var movie in allMovies)
         {
@@ -57,7 +58,7 @@ public class MovieSubtitleCopyService(
             var destStem = Path.GetFileNameWithoutExtension(destVideoFullPath);
             if (destDir is null || string.IsNullOrEmpty(destStem)) continue;
 
-            foreach (var sub in movie.Subtitles.Where(s => s.Side == FileSide.Source))
+            foreach (var sub in movie.Subtitles.Where(s => s.Side == FileSide.Source).ToList())
             {
                 if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
 
@@ -65,11 +66,27 @@ public class MovieSubtitleCopyService(
                 var destPath = Path.Combine(destDir, destStem + sub.Suffix);
 
                 var outcome = TryCopy(sourcePath, destPath);
-                if (outcome == CopyOutcome.Copied) copied++;
-                else if (outcome == CopyOutcome.Failed) failed++;
+                if (outcome == CopyOutcome.Copied)
+                {
+                    movie.Subtitles.Add(new MovieSubtitleFile
+                    {
+                        Side = FileSide.Destination,
+                        Suffix = sub.Suffix,
+                        RelativePath = Path.GetRelativePath(destFolder, destPath),
+                        SizeBytes = new FileInfo(destPath).Length,
+                        ObservedAt = now,
+                    });
+                    destSuffixes.Add(sub.Suffix);
+                    copied++;
+                }
+                else if (outcome == CopyOutcome.Failed)
+                {
+                    failed++;
+                }
             }
         }
 
+        await db.SaveChangesAsync(ct);
         return new MovieSubtitleCopyResult(copied, failed);
     }
 
