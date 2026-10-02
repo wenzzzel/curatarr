@@ -102,8 +102,8 @@ builder.Services.AddScoped<MovieOrphanedFileCleanupService>();
 
 builder.Services.AddSingleton(SyncScheduledTask.Create(TimeSpan.FromHours(1)));
 builder.Services.AddSingleton(SubtitleCopyScheduledTask.Create(TimeSpan.FromHours(1)));
-builder.Services.AddSingleton(ExcessiveSubtitleCleanupScheduledTask.Create(TimeSpan.FromHours(12)));
-builder.Services.AddSingleton(OrphanedFileCleanupScheduledTask.Create(TimeSpan.FromHours(24)));
+builder.Services.AddSingleton(ExcessiveSubtitleCleanupScheduledTask.Create(TimeSpan.FromHours(3)));
+builder.Services.AddSingleton(OrphanedFileCleanupScheduledTask.Create(TimeSpan.FromHours(12)));
 builder.Services.AddSingleton<ScheduledTaskRegistry>();
 builder.Services.AddHostedService<ScheduledTaskHostedService>();
 
