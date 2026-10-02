@@ -28,12 +28,16 @@ public record SeriesDiffRow(
     public int MissingEpisodes => Math.Max(0, SourceEpisodes - DestinationEpisodes);
     public bool IsOrphanedFolder => InDestination && !InSource;
     public bool IsMissingInDestination => InSource && !InDestination;
+
+    /// <summary>Every episode present in source is reconciled in destination and individually OK.</summary>
+    public bool AllEpisodesOk => SourceEpisodes > 0 && OkEpisodes == SourceEpisodes;
+
+    public bool HasEpisodesWithoutOriginalSubs => EpisodesWithoutOriginalSubs > 0;
+
     public bool IsOk => InSource && InDestination
-        && MissingEpisodes == 0
+        && AllEpisodesOk
         && OrphanedFiles == 0
-        && MissingSubtitles == 0
-        && ExcessiveSubtitles == 0
-        && OriginalSubtitles > 0;
+        && ExcessiveSubtitles == 0;
 }
 
 public record SeriesDetail(
@@ -224,12 +228,10 @@ public class SeriesDiffService(
                 });
                 excessive += epExcessive;
 
-                if (!ep.HasDestination) continue;
+                if (!ep.HasDestination || !ep.HasSource) continue;
 
                 var epHasOriginal = ep.DestSubs.Any(s => originalSuffixes.Contains(s));
                 if (!epHasOriginal) withoutOriginal++;
-
-                if (!ep.HasSource) continue;
 
                 var epMissing = ep.SourceSubs.Count(s => !SubtitleEquivalence.IsCoveredByDestination(s, destSet));
                 missing += epMissing;

@@ -56,7 +56,7 @@ public static class CuratarrMetrics
         Series.WithLabels("orphaned").Set(seriesRows.Count(r => r.IsOrphanedFolder));
         Series.WithLabels("missing").Set(seriesRows.Count(r => r.IsMissingInDestination));
         Series.WithLabels("no_original_subs").Set(
-            seriesRows.Count(r => r.InSource && r.InDestination && r.OriginalSubtitles == 0));
+            seriesRows.Count(r => r.InSource && r.InDestination && r.HasEpisodesWithoutOriginalSubs));
 
         Episodes.WithLabels("ok").Set(seriesRows.Sum(r => r.OkEpisodes));
         Episodes.WithLabels("missing").Set(seriesRows.Sum(r => r.MissingEpisodes));
