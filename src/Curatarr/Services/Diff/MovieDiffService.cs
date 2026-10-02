@@ -46,11 +46,15 @@ public record MovieDetail(
     public bool HasSource => SourceFile is not null;
     public bool HasDestination => DestinationFile is not null;
 
-    public IReadOnlyList<SubtitleEntry> MissingSubtitles =>
-        HasSource && HasDestination
-            ? [.. SourceSubtitles.Where(src => !DestinationSubtitles.Any(dst =>
-                dst.Suffix.Equals(src.Suffix, StringComparison.OrdinalIgnoreCase)))]
-            : [];
+    public IReadOnlyList<SubtitleEntry> MissingSubtitles
+    {
+        get
+        {
+            if (!HasSource || !HasDestination) return [];
+            var destSet = SubtitleEquivalence.CreateSuffixSet(DestinationSubtitles.Select(s => s.Suffix));
+            return [.. SourceSubtitles.Where(src => !SubtitleEquivalence.IsCoveredByDestination(src.Suffix, destSet))];
+        }
+    }
 
     public IReadOnlyList<SubtitleEntry> ExcessiveSubtitles
     {
@@ -101,11 +105,6 @@ public class MovieDiffService(
                 HasSourceFile = m.Files.Any(f => f.Side == FileSide.Source),
                 HasDestinationFile = m.Files.Any(f => f.Side == FileSide.Destination),
                 OrphanedFiles = m.OrphanedDestinationFiles.Count,
-                MissingSubtitles =
-                    m.Files.Any(f => f.Side == FileSide.Source) && m.Files.Any(f => f.Side == FileSide.Destination)
-                        ? m.Subtitles.Count(srcSub => srcSub.Side == FileSide.Source &&
-                            !m.Subtitles.Any(destSub => destSub.Side == FileSide.Destination && destSub.Suffix == srcSub.Suffix))
-                        : 0,
                 OriginalSubtitles = m.Subtitles
                     .Count(sub => sub.Side == FileSide.Destination && originalSuffixes.Contains(sub.Suffix)),
                 DownloadedSubtitles = m.Subtitles
@@ -113,7 +112,7 @@ public class MovieDiffService(
             })
             .ToListAsync(ct);
 
-        var excessiveByMovieId = await ComputeExcessiveByMovieAsync(db, ct);
+        var subtitleAggregates = await ComputeSubtitleAggregatesByMovieAsync(db, ct);
 
         var destinationFolders = scanner.GetMovieFolders()
             .ToDictionary(name => name, StringComparer.Ordinal);
@@ -132,6 +131,7 @@ public class MovieDiffService(
                 matchedDestinations.Add(dest);
             }
 
+            var aggregates = subtitleAggregates.GetValueOrDefault(movie.Id) ?? MovieSubtitleAggregates.Empty;
             rows.Add(new MovieDiffRow(
                 movie.Title,
                 movie.RadarrId,
@@ -140,10 +140,10 @@ public class MovieDiffService(
                 movie.HasSourceFile,
                 movie.HasDestinationFile,
                 movie.OrphanedFiles,
-                movie.MissingSubtitles,
+                movie.HasSourceFile && movie.HasDestinationFile ? aggregates.MissingSubtitles : 0,
                 movie.OriginalSubtitles,
                 movie.DownloadedSubtitles,
-                excessiveByMovieId.GetValueOrDefault(movie.Id)));
+                aggregates.ExcessiveSubtitles));
         }
 
         foreach (var folder in destinationFolders.Values)
@@ -166,26 +166,41 @@ public class MovieDiffService(
         return [.. rows.OrderBy(r => r.Title)];
     }
 
-    private static async Task<Dictionary<int, int>> ComputeExcessiveByMovieAsync(
+    private sealed record MovieSubtitleAggregates(int MissingSubtitles, int ExcessiveSubtitles)
+    {
+        public static MovieSubtitleAggregates Empty { get; } = new(0, 0);
+    }
+
+    private static async Task<Dictionary<int, MovieSubtitleAggregates>> ComputeSubtitleAggregatesByMovieAsync(
         CuratarrDbContext db, CancellationToken ct)
     {
-        var destSubs = await db.MovieSubtitleFiles
-            .Where(sf => sf.Side == FileSide.Destination)
-            .Select(sf => new { sf.MovieId, sf.Suffix })
+        var subs = await db.MovieSubtitleFiles
+            .Select(sf => new { sf.MovieId, sf.Suffix, sf.Side })
             .ToListAsync(ct);
 
-        return destSubs
+        return subs
             .GroupBy(x => x.MovieId)
             .ToDictionary(
                 movieGroup => movieGroup.Key,
                 movieGroup =>
                 {
-                    var set = movieGroup.Select(x => x.Suffix).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    return movieGroup.Count(x =>
+                    var destSuffixes = movieGroup
+                        .Where(x => x.Side == FileSide.Destination)
+                        .Select(x => x.Suffix)
+                        .ToList();
+                    var destSet = SubtitleEquivalence.CreateSuffixSet(destSuffixes);
+
+                    var excessive = destSuffixes.Count(suffix =>
                     {
-                        var original = SubtitleEquivalence.GetOriginalEquivalent(x.Suffix);
-                        return original is not null && set.Contains(original);
+                        var original = SubtitleEquivalence.GetOriginalEquivalent(suffix);
+                        return original is not null && destSet.Contains(original);
                     });
+
+                    var missing = movieGroup
+                        .Where(x => x.Side == FileSide.Source)
+                        .Count(x => !SubtitleEquivalence.IsCoveredByDestination(x.Suffix, destSet));
+
+                    return new MovieSubtitleAggregates(missing, excessive);
                 });
     }
 

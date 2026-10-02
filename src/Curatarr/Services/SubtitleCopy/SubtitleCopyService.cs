@@ -62,7 +62,7 @@ public class SubtitleCopyService(
 
                 foreach (var sub in episode.Subtitles.Where(s => s.Side == FileSide.Source).ToList())
                 {
-                    if (ShouldSkip(sub.Suffix, destSuffixes)) continue;
+                    if (SubtitleEquivalence.IsCoveredByDestination(sub.Suffix, destSuffixes)) continue;
 
                     var sourcePath = Path.Combine(sourceFolder, sub.RelativePath);
                     var destPath = Path.Combine(destDir, destStem + sub.Suffix);
@@ -91,13 +91,6 @@ public class SubtitleCopyService(
 
         await db.SaveChangesAsync(ct);
         return new SubtitleCopyResult(copied, failed);
-    }
-
-    private static bool ShouldSkip(string sourceSuffix, HashSet<string> destSuffixes)
-    {
-        if (destSuffixes.Contains(sourceSuffix)) return true;
-        var original = SubtitleEquivalence.GetOriginalEquivalent(sourceSuffix);
-        return original is not null && destSuffixes.Contains(original);
     }
 
     private CopyOutcome TryCopy(string sourcePath, string destPath)

@@ -21,4 +21,18 @@ public static class SubtitleEquivalence
 
         return "." + threeLetter + downloadedSuffix[firstDot..];
     }
+
+    /// <summary>
+    /// Mirrors the copy job's priority: a source subtitle is already covered when the destination
+    /// holds either the exact same suffix or its preferred three-letter equivalent.
+    /// </summary>
+    public static bool IsCoveredByDestination(string sourceSuffix, IReadOnlySet<string> destinationSuffixes)
+    {
+        if (destinationSuffixes.Contains(sourceSuffix)) return true;
+        var original = GetOriginalEquivalent(sourceSuffix);
+        return original is not null && destinationSuffixes.Contains(original);
+    }
+
+    public static HashSet<string> CreateSuffixSet(IEnumerable<string> suffixes) =>
+        new(suffixes, StringComparer.OrdinalIgnoreCase);
 }
